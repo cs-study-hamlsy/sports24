@@ -1,0 +1,77 @@
+---
+version: alpha
+name: "운동24"
+description: "사용자 제공 목업을 그대로 따르는 고밀도 공공 체육정책 업무 화면"
+colors:
+  primary: "#1F467E"
+  primary-active: "#3F6DB3"
+  sidebar: "#4D6380"
+  surface: "#FFFFFF"
+  surface-muted: "#EEF2F7"
+  canvas: "#F6F6F6"
+  border: "#C9D1DC"
+  text: "#222222"
+  text-muted: "#66707D"
+  danger: "#D20A0A"
+  focus: "#2A6FC9"
+typography:
+  sans:
+    fontFamily: "Arial, 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif"
+  data:
+    fontFamily: "Arial, 'Malgun Gothic', sans-serif"
+rounded:
+  DEFAULT: "0px"
+  sm: "2px"
+spacing:
+  page-gutter: "28px"
+  section-gap: "18px"
+  control-height: "48px"
+components:
+  button: { }
+  table: { }
+  select: { }
+  navigation: { }
+---
+
+# 운동24 디자인 기준
+
+## Overview
+
+목업 이미지의 지방자치단체 행정 시스템을 기준으로 하는 제품 화면이다. 1차 사용자는 데스크톱에서 수치와 표를 빠르게 비교하는 체육정책 담당자이며, 언어는 한국어다. 기억점은 짙은 남색 업무 내비게이션과 각진 고밀도 표 구조다. 표현적 장식보다 비교 속도와 목업 충실도가 우선이며, 일반적인 둥근 SaaS 카드·그라데이션·과도한 여백으로 바꾸지 않는다. 이 파일은 별도 디자인 시스템을 제안하지 않고 목업에서 확인한 기준만 기록한다.
+
+런타임 CSS인 `app/globals.css`가 토큰의 구현 소스이며, 이 문서는 동일한 값을 설명한다. 토큰을 바꿀 때 두 파일을 함께 수정한다.
+
+## Colors
+
+`primary`는 상단 메뉴와 주요 행동, `primary-active`는 현재 메뉴, `sidebar`는 좌측 업무군 제목에 사용한다. `surface-muted`는 표 머리글과 선택된 하위 메뉴, `danger`는 부족·편중처럼 주의가 필요한 수치에만 사용한다. 별도 다크 테마는 데모 범위에 포함하지 않는다.
+
+## Typography
+
+원격 폰트 로딩 없이 Windows의 맑은 고딕을 우선하는 시스템 글꼴을 사용한다. 본문은 16px, 표와 컨트롤은 15~17px, 화면 제목은 30px 전후의 굵은 글꼴로 구성한다. 수치는 표 안에서 오른쪽 또는 가운데 정렬하며 색상만으로 판정을 전달하지 않는다.
+
+## Layout
+
+데스크톱은 상단 유틸리티·브랜드·주 메뉴 아래에 250px 좌측 메뉴와 본문을 둔다. 본문은 폭을 제한하지 않고 표 비교에 사용한다. 900px 이하에서는 좌측 메뉴를 본문 위로 보내고, 표는 열 관계를 유지한 채 가로 스크롤한다. 문서 자체가 세로 스크롤을 소유한다.
+
+## Elevation & Depth
+
+목업처럼 그림자를 사용하지 않는다. 흰 바탕, 옅은 회색 표 머리글, 1px 테두리와 남색 구분선으로만 위계를 만든다.
+
+## Shapes
+
+표, 입력, 버튼, 메뉴는 기본적으로 각진 모서리를 사용한다. 포커스 링만 외곽에 분명하게 표시한다.
+
+## Components
+
+- 버튼은 48px 높이를 기본으로 하며 남색 채움은 해당 영역의 주 행동 하나에만 사용한다.
+- 지역 선택은 브라우저 기본 팝업의 플랫폼별 모양을 허용하는 네이티브 `select`가 정식 구현이다.
+- 표는 네이티브 `table`을 사용하고 머리글과 행·열 관계를 유지한다.
+- 로딩이 필요해지면 표 영역의 크기를 유지하는 상태 표시를 사용한다. 장식 목적의 스켈레톤은 쓰지 않는다.
+- 동작 상태는 hover, `focus-visible`, active, disabled를 제공하며 `prefers-reduced-motion`을 존중한다.
+
+## Do's and Don'ts
+
+- **Do:** 구현 전 `reference/mockups`의 전체 화면과 대응 화면을 다시 확인한다.
+- **Do:** 정보 밀도, 각진 표, 남색 계층과 한국어 업무 용어를 일관되게 유지한다.
+- **Don't:** 목업을 둥근 카드 중심의 일반 SaaS 대시보드로 재해석하지 않는다.
+- **Don't:** 장식용 아이콘, 그라데이션, 그림자, 애니메이션으로 표 비교를 방해하지 않는다.

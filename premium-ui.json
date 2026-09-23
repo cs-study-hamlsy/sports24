@@ -1,0 +1,8 @@
+{
+  "profile": "single-screen-product",
+  "sourceRoots": ["app"],
+  "locale": "ko-KR",
+  "ownership": {
+    "Select/Listbox": "native"
+  }
+}
