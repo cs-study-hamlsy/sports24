@@ -2,13 +2,17 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import regions from "../data/regions.json";
 import { baselineMetrics, changesLabel, courseBudget, demoScenarios, metricNames, Scenario, usedCourses } from "../data/scenarios";
+import { calculateSupplyMetrics, describeScenario } from "../lib/simulation";
 
 type View = "overview" | "simulation" | "result" | "compare";
 type Region = (typeof regions)[number];
 type Course = Region["courses"][number];
+type LiveCourse = { brno: string; facil_sn: string; course_no: string; item_nm: string; course_nm: string; lectr_nm: string; lectr_weekday_val: string; settl_amt: string };
+type CourseSearch = { item_nm: string; course_nm: string; brno: string; facil_sn: string };
+type CourseResponse = { pageNo: number; numOfRows: number; totalCount: number; items: LiveCourse[]; error?: string };
 
 const region = regions[0];
 const ageLabels = ["청소년", "청년", "중장년", "고령(65세 이상)"];
@@ -43,6 +47,10 @@ function courseCount(sport: string) {
 
 function signed(value: number) {
   return `${value > 0 ? "+" : ""}${value}`;
+}
+
+function metricsFor(scenario: Scenario) {
+  return calculateSupplyMetrics(region.courses, scenario.changes);
 }
 
 function downloadCsv(filename: string, rows: Array<Array<string | number>>) {
@@ -106,10 +114,10 @@ export default function Sports24({ view }: { view: View }) {
 
   const activeScenario = previewScenario ?? scenarios.find((item) => item.id === activeScenarioId) ?? demoScenarios[2];
   const knownDraft = demoScenarios.find((item) => sameChanges(item.changes, draftChanges));
-  const previewMetrics = knownDraft?.metrics ?? null;
+  const previewMetrics = calculateSupplyMetrics(region.courses, draftChanges);
   const positiveUsed = usedCourses(draftChanges);
   const netChange = Object.values(draftChanges).reduce((sum, value) => sum + value, 0);
-  const afterTotal = 84 + netChange;
+  const afterTotal = region.courses.reduce((sum, course) => sum + course.count, 0) + netChange;
 
   function setChange(sport: string, nextValue: number) {
     if (nextValue < -courseCount(sport)) return;
@@ -129,7 +137,7 @@ export default function Sports24({ view }: { view: View }) {
       changes: { ...draftChanges },
       metrics: previewMetrics,
       date: currentDate(),
-      analysis: knownDraft?.analysis ?? ["강좌 수와 종목 비중은 변경값으로 계산했습니다.", "공급 지표와 정책 분석의견은 계산 엔진 연결 후 표시됩니다."],
+      analysis: describeScenario(region.courses, draftChanges),
     };
   }
 
@@ -214,7 +222,7 @@ export default function Sports24({ view }: { view: View }) {
               ? <span key={item} aria-disabled="true" title="시설 조정은 다음 개발 단계입니다">· {item}</span>
               : <Link key={item} href={sideTargets[index]} className={index === 0 ? "selected" : ""} aria-current={index === 0 ? "page" : undefined}>· {item}</Link>)}
           </section>
-          <section className="source-box"><h2>자료 출처</h2><p>스포츠강좌이용권 등록강좌</p><p>전국 체육시설 현황</p><p>주민등록 연령별 인구</p></section>
+          <section className="source-box"><h2>연동 대상 데이터</h2><p>스포츠강좌이용권 등록강좌</p><p>전국 체육시설 현황</p><p>주민등록 연령별 인구</p><p>현재 지표는 목업 시연값 기준</p></section>
         </aside>
         <main id="main">
           <div className="page-heading">
@@ -247,7 +255,7 @@ export default function Sports24({ view }: { view: View }) {
                         <td><strong>{course.count + change}</strong></td><td>{((course.count + change) / afterTotal * 100).toFixed(1)}%</td><td>{course.comparison.toFixed(1)}%</td>
                       </tr>;
                     })}
-                    <tr className="total-row"><td /><th scope="row">합계 (기타 {courseCount("기타")}개 포함)</th><td>84</td><td>{signed(netChange)}</td><td>{afterTotal}</td><td /><td /></tr>
+                    <tr className="total-row"><td /><th scope="row">합계 (기타 {courseCount("기타")}개 포함)</th><td>{region.courses.reduce((sum, course) => sum + course.count, 0)}</td><td>{signed(netChange)}</td><td>{afterTotal}</td><td /><td /></tr>
                   </tbody>
                 </DataTable>
               </Section>
@@ -270,15 +278,17 @@ export default function Sports24({ view }: { view: View }) {
               <DataTable label="지표 변화 미리보기 표" className="preview-table">
                 <thead><tr><th scope="col">구분</th>{metricNames.map((name) => <th key={name} scope="col">{name}</th>)}</tr></thead>
                 <tbody>
-                  <tr><th scope="row">현재</th>{baselineMetrics.map((value, index) => <td key={metricNames[index]}>{value}</td>)}</tr>
-                  <tr><th scope="row">변경 후</th>{metricNames.map((name, index) => <td key={name}><strong>{previewMetrics?.[index] ?? "—"}</strong></td>)}</tr>
+                  <tr><th scope="row">현재</th>{baselineMetrics.map((value, index) => <td key={metricNames[index]}>{value ?? "산출 불가"}</td>)}</tr>
+                  <tr><th scope="row">변경 후</th>{metricNames.map((name, index) => <td key={name}><strong>{previewMetrics[index] ?? "산출 불가"}</strong></td>)}</tr>
                   <tr className="total-row"><th scope="row">증감</th>{metricNames.map((name, index) => {
-                    const delta = previewMetrics ? previewMetrics[index] - baselineMetrics[index] : null;
-                    return <td key={name} className={delta === null ? "" : (index === 2 ? delta < 0 : delta > 0) ? "positive" : delta === 0 ? "" : "danger"}>{delta === null ? "계산 대기" : `${delta > 0 ? "▲" : delta < 0 ? "▼" : ""}${Math.abs(delta)}${index === 2 && delta < 0 ? " (개선)" : ""}`}</td>;
+                    const before = baselineMetrics[index];
+                    const after = previewMetrics[index];
+                    const delta = before === null || after === null ? null : after - before;
+                    return <td key={name} className={delta === null ? "" : (index === 2 ? delta < 0 : delta > 0) ? "positive" : delta === 0 ? "" : "danger"}>{delta === null ? "산출 불가" : `${delta > 0 ? "▲" : delta < 0 ? "▼" : ""}${Math.abs(delta)}${index === 2 && delta < 0 ? " (개선)" : ""}`}</td>;
                   })}</tr>
                 </tbody>
               </DataTable>
-              {!previewMetrics && <p className="table-note">임의 조정안의 정책 지표는 계산 엔진 연결 후 표시합니다. 강좌 수와 비중은 현재 변경값으로 계산했습니다.</p>}
+              <p className="table-note">시연 데이터의 종목 구성만 계산합니다. 유사도는 실제 수요 적합도를 뜻하지 않으며 연령별 적합도는 산출하지 않습니다.</p>
             </Section>
             <div className="page-actions split-actions">
               <button type="button" className="secondary-button" onClick={() => { setDraftName("새 시나리오"); setDraftChanges({}); setVisibleSports(editableSports.slice(0, 5)); setNotice("강좌 조정값을 초기화했습니다."); }}>초기화</button>
@@ -306,21 +316,21 @@ export default function Sports24({ view }: { view: View }) {
               </Section>
             </div>
             <div id="comparison">
-              <Section title="지표 비교" unit="굵은 글씨: 항목별 최고값 (편중도는 최저값)">
+              <Section title="지표 비교" unit="시연 데이터 기준 · 굵은 글씨: 항목별 최고값 (편중도는 최저값)">
                 <DataTable label="시나리오 지표 비교 표" className="compare-metrics-table">
                   <thead><tr><th scope="col">지표명</th><th scope="col">현재</th>{scenarios.filter((item) => selectedScenarioIds.includes(item.id)).map((scenario) => <th scope="col" key={scenario.id}>{scenario.name.split(" ")[0]}</th>)}</tr></thead>
                   <tbody>{metricNames.map((name, index) => {
                     const selected = scenarios.filter((item) => selectedScenarioIds.includes(item.id));
-                    const values = selected.map((item) => item.metrics?.[index]).filter((value): value is number => typeof value === "number");
+                    const values = selected.map((item) => metricsFor(item)[index]).filter((value): value is number => typeof value === "number");
                     const best = values.length ? (index === 2 ? Math.min(...values) : Math.max(...values)) : null;
-                    return <tr key={name}><th scope="row">{name}</th><td className="baseline-cell">{baselineMetrics[index]}</td>{selected.map((scenario) => <td key={scenario.id} className={scenario.metrics?.[index] === best ? "best-cell" : ""}>{scenario.metrics?.[index] ?? "—"}</td>)}</tr>;
+                    return <tr key={name}><th scope="row">{name}</th><td className="baseline-cell">{baselineMetrics[index] ?? "산출 불가"}</td>{selected.map((scenario) => { const value = metricsFor(scenario)[index]; return <td key={scenario.id} className={value !== null && value === best ? "best-cell" : ""}>{value ?? "산출 불가"}</td>; })}</tr>;
                   })}</tbody>
                 </DataTable>
               </Section>
               <Section title="분석의견">
                 <DataTable label="시나리오별 장단점 표" className="comparison-notes-table">
                   <thead><tr><th scope="col">구분</th><th scope="col">장점</th><th scope="col">단점</th></tr></thead>
-                  <tbody>{scenarios.filter((item) => selectedScenarioIds.includes(item.id)).map((scenario) => <tr key={scenario.id}><th scope="row">{scenario.name.split(" ")[0]}</th><td className="text-left">{scenario.id === "a" ? "청소년 적합도 최고(84)" : scenario.id === "b" ? "공급 적합도·다양성·고령층 적합도 최고" : scenario.id === "c" ? "종목 편중도 최저(32), 잔여 강좌 1개" : "강좌 조정안을 저장하고 비교할 수 있음"}</td><td className="text-left">{scenario.id === "a" ? "고령층 적합도 개선 미흡(43 → 50)" : scenario.id === "b" ? "강좌 10개 전부 사용, 청소년 적합도 3점 하락" : scenario.id === "c" ? "태권도 축소에 따른 이해관계 조정 필요" : "지표 계산 엔진 연결 전이라 수치 비교 대기"}</td></tr>)}</tbody>
+                  <tbody>{scenarios.filter((item) => selectedScenarioIds.includes(item.id)).map((scenario) => { const metrics = metricsFor(scenario); return <tr key={scenario.id}><th scope="row">{scenario.name.split(" ")[0]}</th><td className="text-left">{`구성 유사도 ${metrics[0]}점, 다양성 ${metrics[1]}점`}</td><td className="text-left">{`편중도 ${metrics[2]}점. 연령별 적합도는 산출 불가`}</td></tr>; })}</tbody>
                 </DataTable>
               </Section>
             </div>
@@ -329,7 +339,7 @@ export default function Sports24({ view }: { view: View }) {
               <div>
                 <button type="button" className="secondary-button" onClick={() => downloadCsv("시나리오-지표비교.csv", [
                   ["지표명", "현재", ...scenarios.filter((item) => selectedScenarioIds.includes(item.id)).map((item) => item.name)],
-                  ...metricNames.map((name, index) => [name, baselineMetrics[index], ...scenarios.filter((item) => selectedScenarioIds.includes(item.id)).map((item) => item.metrics?.[index] ?? "계산 대기")]),
+                  ...metricNames.map((name, index) => [name, baselineMetrics[index] ?? "산출 불가", ...scenarios.filter((item) => selectedScenarioIds.includes(item.id)).map((item) => metricsFor(item)[index] ?? "산출 불가")]),
                 ])}>CSV 다운로드</button>
                 <button type="button" className="secondary-button" onClick={() => window.print()}>인쇄</button>
                 <button type="button" className="primary-button" onClick={() => { const scenario = scenarios.find((item) => selectedScenarioIds.includes(item.id)); if (scenario) openSavedResult(scenario); else setNotice("보고서로 확인할 시나리오를 선택해 주세요."); }}>보고서 작성</button>
@@ -354,26 +364,94 @@ function Overview({ onSimulation }: { onSimulation: () => void }) {
       <button className="primary-button" type="submit">조회</button>
     </form>
     <div className="overview-grid">
-      <Section title="주요지표"><DataTable label="주요지표 표" className="metrics-table"><thead><tr><th scope="col">지표명</th><th scope="col">값</th><th scope="col">판정</th><th scope="col">비고</th></tr></thead><tbody>{currentRegion.metrics.map((metric) => <tr key={metric.name}><th scope="row">{metric.name}</th><td className={metric.tone === "danger" ? "danger" : ""}>{metric.value}</td><td className={metric.tone === "danger" ? "danger" : ""}>{metric.judgment}</td><td>{metric.note}</td></tr>)}</tbody></DataTable></Section>
+      <Section title="주요지표"><DataTable label="주요지표 표" className="metrics-table"><thead><tr><th scope="col">지표명</th><th scope="col">값</th><th scope="col">판정</th><th scope="col">비고</th></tr></thead><tbody>{metricNames.map((name, index) => { const value = calculateSupplyMetrics(currentRegion.courses)[index]; return <tr key={name}><th scope="row">{name}</th><td>{value ?? "—"}</td><td>{value === null ? "산출 불가" : "참고"}</td><td>{["유사지역 종목 비중과의 일치도", "종목 비중의 고른 정도", "종목 비중 제곱합(낮을수록 분산)", "연령별 실제 수요·수강 대상 자료 없음", "연령별 실제 수요·수강 대상 자료 없음"][index]}</td></tr>; })}</tbody></DataTable><p className="table-note">※ 현재 강좌 수와 비교지역 비중은 목업 시연용 예시값이며 실제 지역 통계가 아닙니다.</p></Section>
       <div id="population"><Section title="연령별 인구 구성"><DataTable label="연령별 인구 구성 표"><thead><tr><th scope="col">구분</th>{ageLabels.map((label) => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody><tr><th scope="row">{currentRegion.shortName}</th>{currentRegion.population.region.map((value, index) => <td className={index === 3 ? "danger" : ""} key={ageLabels[index]}>{value}%</td>)}</tr><tr><th scope="row">비교지역 평균</th>{currentRegion.population.comparison.map((value, index) => <td key={ageLabels[index]}>{value}%</td>)}</tr></tbody></DataTable><p className="table-note">※ 인구구조는 잠재 수요 참고용이며 종목 선호를 의미하지 않음</p></Section></div>
       <div id="courses"><Section title="종목별 강좌 현황" unit="(단위: 개, %)"><DataTable label="종목별 강좌 현황 표"><thead><tr><th scope="col">종목</th><th scope="col">강좌수</th><th scope="col">비중</th><th scope="col">비교지역 평균</th><th scope="col">차이</th></tr></thead><tbody>{currentRegion.courses.map((course) => { const difference = course.share - course.comparison; return <tr key={course.sport}><th scope="row">{course.sport}</th><td>{course.count}</td><td>{course.share.toFixed(1)}</td><td>{course.comparison.toFixed(1)}</td><td className={Math.abs(difference) >= 7 ? "danger" : ""}>{difference > 0 ? "+" : ""}{difference.toFixed(1)}</td></tr>; })}<tr className="total-row"><th scope="row">합계</th><td>{totalCourses}</td><td>100.0</td><td>100.0</td><td /></tr></tbody></DataTable></Section></div>
-      <Section title="분석의견"><div className="analysis-box"><h3>현황 분석의견 <span>(자동분석)</span></h3><ol>{currentRegion.analysis.map((item) => <li key={item}>{item}</li>)}</ol></div></Section>
+      <Section title="분석의견"><div className="analysis-box"><h3>현황 분석의견 <span>(시연 데이터 기준)</span></h3><ol>{currentRegion.analysis.slice(0, 2).map((item) => <li key={item}>{item}</li>)}<li>연령별 강좌 적합도는 수강 대상·실제 수요 자료가 없어 판단하지 않습니다.</li></ol></div></Section>
     </div>
     <div className="page-actions"><button type="button" className="secondary-button" onClick={() => downloadCsv(`${currentRegion.shortName}-체육공급현황.csv`, [["종목", "강좌수", "비중", "비교지역 평균"], ...currentRegion.courses.map((course) => [course.sport, course.count, course.share, course.comparison])])}>CSV 다운로드</button><button type="button" className="secondary-button" onClick={() => window.print()}>인쇄</button><button type="button" className="primary-button" onClick={onSimulation}>정책시뮬레이션</button></div>
+    <LiveCourseLookup />
   </>;
 }
 
+function LiveCourseLookup() {
+  const [search, setSearch] = useState<CourseSearch>({ item_nm: "", course_nm: "", brno: "", facil_sn: "" });
+  const [committed, setCommitted] = useState<CourseSearch | null>(null);
+  const [result, setResult] = useState<CourseResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const requestRef = useRef<AbortController | null>(null);
+  const inputRefs = useRef<Record<keyof CourseSearch, HTMLInputElement | null>>({ item_nm: null, course_nm: null, brno: null, facil_sn: null });
+
+  useEffect(() => () => requestRef.current?.abort(), []);
+
+  async function load(pageNo: number, filters: CourseSearch) {
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
+    setLoading(true);
+    setError("");
+    const params = new URLSearchParams({ pageNo: String(pageNo), numOfRows: "10" });
+    for (const [key, value] of Object.entries(filters)) if (value.trim()) params.set(key, value.trim());
+    try {
+      const response = await fetch(`/api/courses?${params}`, { signal: controller.signal });
+      const data = await response.json() as CourseResponse;
+      if (!response.ok) throw new Error(data.error || "강좌정보를 불러오지 못했습니다.");
+      if (controller.signal.aborted) return;
+      setResult(data);
+      setCommitted(filters);
+    } catch (caught) {
+      if (controller.signal.aborted) return;
+      setError(caught instanceof Error ? caught.message : "강좌정보를 불러오지 못했습니다.");
+      setResult(null);
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
+  }
+
+  const fields: { key: keyof CourseSearch; label: string; placeholder: string }[] = [
+    { key: "item_nm", label: "종목명", placeholder: "예: 태권도" },
+    { key: "course_nm", label: "강좌명", placeholder: "예: 초급반" },
+    { key: "brno", label: "사업자등록번호", placeholder: "숫자 입력" },
+    { key: "facil_sn", label: "시설일련번호", placeholder: "숫자 입력" },
+  ];
+  const first = result ? (result.pageNo - 1) * result.numOfRows + 1 : 0;
+  const last = result ? Math.min(result.pageNo * result.numOfRows, result.totalCount) : 0;
+
+  return <details className="live-courses" id="live-courses">
+    <summary>스포츠바우처 등록강좌 실시간 조회</summary>
+    <p className="table-note">공공데이터 API의 전국 강좌정보입니다. 지역 식별 정보가 없어 위 원주시 지표와 시뮬레이션 수치에는 아직 합산하지 않습니다.</p>
+    <form className="course-search-form" noValidate onSubmit={(event) => { event.preventDefault(); void load(1, search); }}>
+      {fields.map(({ key, label, placeholder }) => <div className="course-search-field" key={key}>
+        <label htmlFor={`live-${key}`}>{label}</label>
+        <div className="course-search-input"><input id={`live-${key}`} ref={(element) => { inputRefs.current[key] = element; }} value={search[key]} maxLength={100} placeholder={placeholder} onChange={(event) => setSearch((current) => ({ ...current, [key]: event.target.value }))} />
+          {search[key] && <button type="button" aria-label={`${label} 지우기`} onClick={() => { setSearch((current) => ({ ...current, [key]: "" })); requestRef.current?.abort(); setLoading(false); inputRefs.current[key]?.focus(); }}>×</button>}
+        </div>
+      </div>)}
+      <button type="submit" className="primary-button" disabled={loading}>{loading ? "조회 중" : "강좌 조회"}</button>
+    </form>
+    <div className="live-result" aria-live="polite">
+      {loading ? <p>등록강좌를 조회하고 있습니다.</p> : error ? <p className="live-error" role="alert">{error}</p> : !result ? <p>검색 조건을 입력하고 강좌 조회를 누르세요. 조건이 없으면 첫 페이지를 조회합니다.</p> : result.items.length === 0 ? <p>조회된 강좌가 없습니다. 검색 조건을 바꿔 다시 조회해 주세요.</p> : <>
+        <p>총 {result.totalCount.toLocaleString("ko-KR")}건 중 {first.toLocaleString("ko-KR")}–{last.toLocaleString("ko-KR")}건</p>
+        <DataTable label="스포츠바우처 등록강좌 조회 결과" className="live-course-table"><thead><tr><th scope="col">종목</th><th scope="col">강좌명</th><th scope="col">강사</th><th scope="col">요일</th><th scope="col">이용금액</th><th scope="col">사업자번호</th><th scope="col">시설번호</th></tr></thead><tbody>{result.items.map((course, index) => <tr key={`${course.brno}-${course.facil_sn}-${course.course_no}-${index}`}><th scope="row">{course.item_nm || "—"}</th><td>{course.course_nm || "—"}</td><td>{course.lectr_nm || "—"}</td><td>{course.lectr_weekday_val || "—"}</td><td>{course.settl_amt || "—"}</td><td>{course.brno || "—"}</td><td>{course.facil_sn || "—"}</td></tr>)}</tbody></DataTable>
+        <div className="course-pagination"><button type="button" className="secondary-button" disabled={result.pageNo <= 1} onClick={() => committed && void load(result.pageNo - 1, committed)}>이전</button><span>{result.pageNo}페이지</span><button type="button" className="secondary-button" disabled={last >= result.totalCount} onClick={() => committed && void load(result.pageNo + 1, committed)}>다음</button></div>
+      </>}
+    </div>
+  </details>;
+}
+
 function Result({ scenario, onList, onCompare }: { scenario: Scenario; onList: () => void; onCompare: () => void }) {
+  const scenarioMetrics = metricsFor(scenario);
   const net = Object.values(scenario.changes).reduce((sum, value) => sum + value, 0);
-  const total = 84 + net;
+  const total = region.courses.reduce((sum, course) => sum + course.count, 0) + net;
   const visibleCourses = ["태권도", "수영", "배드민턴", "생활체조", "요가·필라테스"].map((sport) => region.courses.find((course) => course.sport === sport)!);
   return <>
     <div id="scenario-info"><Section title="시나리오 정보"><DataTable label="시나리오 정보 표" className="scenario-info-table"><tbody><tr><th scope="row">시나리오명</th><td>{scenario.name}</td><th scope="row">대상지역</th><td>{region.label}</td></tr><tr><th scope="row">조정내용</th><td>{changesLabel(scenario.changes)}</td><th scope="row">강좌 사용</th><td>{usedCourses(scenario.changes)} / {courseBudget}개 (잔여 {courseBudget - usedCourses(scenario.changes)})</td></tr></tbody></DataTable></Section></div>
     <div className="result-grid">
-      <Section title="지표 비교"><DataTable label="시나리오 지표 비교 표" className="result-metrics-table"><thead><tr><th scope="col">지표명</th><th scope="col">현재</th><th scope="col">변경 후</th><th scope="col">증감</th><th scope="col">판정</th></tr></thead><tbody>{metricNames.map((name, index) => { const after = scenario.metrics?.[index]; const delta = after === undefined ? null : after - baselineMetrics[index]; const improved = delta !== null && (index === 2 ? delta < 0 : delta > 0); return <tr key={name}><th scope="row">{name}</th><td>{baselineMetrics[index]}</td><td><strong>{after ?? "—"}</strong></td><td className={delta === null ? "" : improved ? "positive" : delta === 0 ? "" : "danger"}>{delta === null ? "—" : signed(delta)}</td><td className={delta === null ? "" : improved ? "positive" : delta === 0 ? "" : "danger"}>{delta === null ? "계산 대기" : improved ? "개선" : delta === 0 ? "유지" : "악화"}</td></tr>; })}</tbody></DataTable></Section>
+      <Section title="지표 비교"><DataTable label="시나리오 지표 비교 표" className="result-metrics-table"><thead><tr><th scope="col">지표명</th><th scope="col">현재</th><th scope="col">변경 후</th><th scope="col">증감</th><th scope="col">판정</th></tr></thead><tbody>{metricNames.map((name, index) => { const before = baselineMetrics[index]; const after = scenarioMetrics[index]; const delta = before === null || after === null ? null : after - before; const improved = delta !== null && (index === 2 ? delta < 0 : delta > 0); return <tr key={name}><th scope="row">{name}</th><td>{before ?? "산출 불가"}</td><td><strong>{after ?? "산출 불가"}</strong></td><td className={delta === null ? "" : improved ? "positive" : delta === 0 ? "" : "danger"}>{delta === null ? "—" : signed(delta)}</td><td className={delta === null ? "" : improved ? "positive" : delta === 0 ? "" : "danger"}>{delta === null ? "산출 불가" : improved ? "개선" : delta === 0 ? "유지" : "악화"}</td></tr>; })}</tbody></DataTable></Section>
       <Section title="종목 구성 변화" unit="(단위: %)"><DataTable label="종목 구성 변화 표" className="result-course-table"><thead><tr><th scope="col">종목</th><th scope="col">현재 비중</th><th scope="col">변경 후</th><th scope="col">비교지역</th><th scope="col">비교</th></tr></thead><tbody>{visibleCourses.map((course: Course) => { const after = ((course.count + (scenario.changes[course.sport] ?? 0)) / total) * 100; const label = after < course.comparison - 3 ? "여전히 낮음" : after > course.comparison + 3 ? "여전히 높음" : Math.abs(after - course.comparison) <= 0.5 ? "유사 수준" : "-"; return <tr key={course.sport}><th scope="row">{course.sport}</th><td>{course.share.toFixed(1)}</td><td><strong>{after.toFixed(1)}</strong></td><td>{course.comparison.toFixed(1)}</td><td className={label.startsWith("여전히") ? "danger" : ""}>{label}</td></tr>; })}</tbody></DataTable></Section>
     </div>
-    <div id="analysis"><Section title="분석의견"><div className="analysis-box result-analysis"><h3>시나리오 분석의견 <span>({scenario.metrics ? "목업 예시 분석" : "계산 대기"})</span></h3><ol>{scenario.analysis.map((item) => <li key={item}>{item}</li>)}</ol></div></Section></div>
+    <div id="analysis"><Section title="분석의견"><div className="analysis-box result-analysis"><h3>시나리오 분석의견 <span>(시연 데이터 기반 자동분석)</span></h3><ol>{describeScenario(region.courses, scenario.changes).map((item) => <li key={item}>{item}</li>)}</ol></div></Section></div>
     <div className="page-actions split-actions"><button type="button" className="secondary-button" onClick={onList}>목록</button><div><button type="button" className="secondary-button" disabled title="한글 파일 생성은 다음 개발 단계입니다">한글(HWP) 저장</button><button type="button" className="secondary-button" onClick={() => window.print()}>PDF 저장</button><button type="button" className="secondary-button" onClick={() => window.print()}>인쇄</button><button type="button" className="primary-button" onClick={onCompare}>정책안비교</button></div></div>
   </>;
 }

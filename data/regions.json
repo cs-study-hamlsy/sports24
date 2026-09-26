@@ -4,13 +4,6 @@
     "label": "강원 원주시",
     "shortName": "원주시",
     "comparisonLabel": "춘천시, 충주시, 제천시",
-    "metrics": [
-      { "name": "공급 적합도", "value": 64, "judgment": "보통", "note": "인구구성 대비 강좌 공급 수준", "tone": "normal" },
-      { "name": "종목 다양성", "value": 58, "judgment": "보통", "note": "운영 종목의 고른 정도", "tone": "normal" },
-      { "name": "종목 편중도", "value": 41, "judgment": "높음", "note": "특정 종목 집중 정도(낮을수록 양호)", "tone": "danger" },
-      { "name": "고령층 적합도", "value": 43, "judgment": "낮음", "note": "65세 이상 인구 대비 공급", "tone": "danger" },
-      { "name": "청소년 적합도", "value": 82, "judgment": "양호", "note": "청소년 인구 대비 공급", "tone": "normal" }
-    ],
     "population": {
       "region": [14, 18, 42, 26],
       "comparison": [15, 19, 44, 22]

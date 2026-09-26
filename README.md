@@ -30,10 +30,11 @@ npm run dev
 
 ```dotenv
 OPENAI_API_KEY=your_api_key
+SPORTS_COURSE_API_KEY=your_data_go_kr_service_key
 ```
 
-API 키는 서버의 Route Handler에서만 사용하며 브라우저에 노출하지 않는다. AI 기능을 구현하기 전까지는 환경변수가 없어도 핵심 화면과 코드 기반 시뮬레이션이 동작해야 한다.
+`SPORTS_COURSE_API_KEY`는 공공데이터포털에서 이 강좌 API에 활용신청한 인증키다. 발급받은 일반 키 또는 URL 인코딩된 키를 입력할 수 있다. API 키는 서버의 Route Handler에서만 사용하며 브라우저에 노출하지 않는다. 키가 없어도 기존 목업 데모 화면은 열리지만 실시간 강좌 조회는 사용할 수 없다.
 
 ## 배포 방법
 
-Git 저장소를 Vercel 프로젝트에 연결하고 프레임워크를 Next.js로 설정한다. AI 기능을 사용하는 배포 환경에는 `OPENAI_API_KEY`를 Vercel 환경변수로 등록한 뒤 배포한다. 정제된 JSON 데이터는 애플리케이션과 함께 배포한다.
+Git 저장소를 Vercel 프로젝트에 연결하고 프레임워크를 Next.js로 설정한다. 실시간 강좌 조회를 위해 Vercel 프로젝트의 Environment Variables에 `SPORTS_COURSE_API_KEY`를 등록한 뒤 재배포한다. AI 기능을 사용할 때는 `OPENAI_API_KEY`도 등록한다. 정제된 JSON 데이터는 애플리케이션과 함께 배포한다.
