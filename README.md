@@ -30,8 +30,11 @@ npm run dev
 
 ```dotenv
 OPENAI_API_KEY=your_api_key
+OPENAI_MODEL=gpt-4o-mini
 SPORTS_COURSE_API_KEY=your_data_go_kr_service_key
 ```
+
+`OPENAI_API_KEY`는 서버의 `/api/analyze` Route Handler에서만 사용하는 AI 분석 인증키다. `OPENAI_MODEL`은 선택값으로 지정하지 않으면 `gpt-4o-mini`를 사용한다. 키가 없어도 나머지 화면은 열리며 AI 분석 대신 계산 엔진 결과가 표시된다.
 
 `SPORTS_COURSE_API_KEY`는 공공데이터포털에서 이 강좌 API에 활용신청한 인증키다. 발급받은 일반 키 또는 URL 인코딩된 키를 입력할 수 있다. API 키는 서버의 Route Handler에서만 사용하며 브라우저에 노출하지 않는다. 키가 없어도 기존 목업 데모 화면은 열리지만 실시간 강좌 조회는 사용할 수 없다.
 
