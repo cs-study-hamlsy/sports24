@@ -2,14 +2,12 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import regions from "../data/regions.json";
+import { rankedPeers, region, similarPeers, PEER_COUNT } from "../lib/regions";
 import { baselineMetrics, changesLabel, courseBudget, demoScenarios, metricNames, usedCourses } from "../data/scenarios";
 import { AppShell, DataTable, Section, SideItem } from "./ui";
 
 type ExtendedView = "regionCompare" | "facilities" | "history" | "report";
 type FacilityChange = Record<string, number>;
-
-const region = regions[0];
 const facilities = [
   { type: "공공체육관", current: 5, unitCost: 8 },
   { type: "수영장", current: 2, unitCost: 15 },
@@ -49,17 +47,27 @@ export default function ExtendedPage({ view, scenarioId = "c" }: { view: Extende
 }
 
 function RegionCompare() {
-  const peerNames = region.comparisonLabel.split(", ");
   return <>
-    <div className="filter-bar compact-filter"><span className="filter-label">기준지역</span><strong>{region.label}</strong><span className="filter-label">비교지역</span><strong>{region.comparisonLabel}</strong></div>
-    <p className="inline-notice neutral-notice">현재 비교지역은 목업의 시연 조합입니다. 실제 유사 지역 선정 기준과 실측값은 데이터 정제 후 확정합니다.</p>
+    <div className="filter-bar compact-filter"><span className="filter-label">기준지역</span><strong>{region.label}</strong><span className="filter-label">유사지역 (자동 선정)</span><strong>{region.comparisonLabel}</strong></div>
+    <p className="inline-notice neutral-notice">유사지역과 비교 평균은 코드가 인구 구성·규모·강좌·시설 데이터로 계산합니다. 입력값은 시연 데이터이며 실측 정제 후 결과가 다시 계산됩니다.</p>
+    <Section title="유사도 산정 결과" unit={`후보 ${rankedPeers.length}곳 중 상위 ${PEER_COUNT}곳 선정`}>
+      <DataTable label="후보 지역 유사도 산정 결과" className="peer-score-table">
+        <thead><tr><th scope="col">순위</th><th scope="col">후보지역</th><th scope="col">연령구성 차이</th><th scope="col">인구규모 차이</th><th scope="col">강좌총량 차이</th><th scope="col">시설수 차이</th><th scope="col">유사도</th><th scope="col">선정</th></tr></thead>
+        <tbody>{rankedPeers.map((peer, index) => { const selected = index < PEER_COUNT; return <tr key={peer.region.id} className={selected ? "best-cell-row" : ""}>
+          <td>{index + 1}</td><th scope="row">{peer.region.shortName}</th>
+          <td>{peer.populationGap.toFixed(1)}%p</td><td>{peer.sizeGap.toFixed(1)}%</td><td>{peer.courseGap.toFixed(1)}%</td><td>{peer.facilityGap.toFixed(1)}%</td>
+          <td><strong>{peer.similarity}</strong></td><td className={selected ? "positive" : ""}>{selected ? "선정" : "제외"}</td>
+        </tr>; })}</tbody>
+      </DataTable>
+      <p className="table-note">유사도 = 100 − (연령구성 차이×0.4 + 인구규모 차이×0.3 + 강좌총량 차이×0.15 + 시설수 차이×0.15). 값이 작을수록 유사합니다. 산식은 <code>lib/regions.ts</code>에 있습니다.</p>
+    </Section>
     <div className="overview-grid compare-region-grid">
       <Section title="인구구성 비교" unit="(단위: %)">
-        <DataTable label="기준지역과 유사지역 인구구성 비교"><thead><tr><th scope="col">구분</th><th scope="col">청소년</th><th scope="col">청년</th><th scope="col">중장년</th><th scope="col">고령</th></tr></thead><tbody><tr><th scope="row">{region.shortName}</th>{region.population.region.map((value) => <td key={value}>{value}</td>)}</tr><tr><th scope="row">비교지역 평균</th>{region.population.comparison.map((value) => <td key={value}>{value}</td>)}</tr></tbody></DataTable>
+        <DataTable label="기준지역과 유사지역 인구구성 비교"><thead><tr><th scope="col">구분</th><th scope="col">청소년</th><th scope="col">청년</th><th scope="col">중장년</th><th scope="col">고령</th></tr></thead><tbody><tr><th scope="row">{region.shortName}</th>{region.population.region.map((value, index) => <td key={index}>{value}</td>)}</tr><tr><th scope="row">유사지역 평균</th>{region.population.comparison.map((value, index) => <td key={index}>{value}</td>)}</tr></tbody></DataTable>
       </Section>
-      <Section title="비교 기준"><div className="analysis-box"><h3>시연 비교지역 <span>({peerNames.length}개 지역)</span></h3><ol>{peerNames.map((name) => <li key={name}>{name}</li>)}<li>인구·시설·강좌 수의 공식 유사도 산식은 아직 적용하지 않았습니다.</li></ol></div></Section>
+      <Section title="선정된 유사지역"><div className="analysis-box"><h3>유사지역 <span>({similarPeers.length}개 지역)</span></h3><ol>{similarPeers.map((peer) => <li key={peer.region.id}>{peer.region.label} — 유사도 {peer.similarity}</li>)}<li>유사지역 평균값을 기준지역 비교값으로 사용합니다.</li></ol></div></Section>
     </div>
-    <Section title="종목 공급 비중 비교" unit="(단위: %, %p)"><DataTable label="기준지역과 유사지역 종목 비중 비교"><thead><tr><th scope="col">종목</th><th scope="col">{region.shortName}</th><th scope="col">비교지역 평균</th><th scope="col">차이</th><th scope="col">검토</th></tr></thead><tbody>{region.courses.map((course) => { const difference = course.share - course.comparison; return <tr key={course.sport}><th scope="row">{course.sport}</th><td>{course.share.toFixed(1)}</td><td>{course.comparison.toFixed(1)}</td><td className={Math.abs(difference) >= 7 ? "danger" : ""}>{difference > 0 ? "+" : ""}{difference.toFixed(1)}</td><td>{difference <= -3 ? "상대적으로 낮음" : difference >= 3 ? "상대적으로 높음" : "유사 범위"}</td></tr>; })}</tbody></DataTable></Section>
+    <Section title="종목 공급 비중 비교" unit="(단위: %, %p)"><DataTable label="기준지역과 유사지역 종목 비중 비교"><thead><tr><th scope="col">종목</th><th scope="col">{region.shortName}</th><th scope="col">유사지역 평균</th><th scope="col">차이</th><th scope="col">검토</th></tr></thead><tbody>{region.courses.map((course) => { const difference = course.share - course.comparison; return <tr key={course.sport}><th scope="row">{course.sport}</th><td>{course.share.toFixed(1)}</td><td>{course.comparison.toFixed(1)}</td><td className={Math.abs(difference) >= 7 ? "danger" : ""}>{difference > 0 ? "+" : ""}{difference.toFixed(1)}</td><td>{difference <= -3 ? "상대적으로 낮음" : difference >= 3 ? "상대적으로 높음" : "유사 범위"}</td></tr>; })}</tbody></DataTable></Section>
     <div className="page-actions"><Link className="secondary-button" href="/">지역현황</Link><Link className="primary-button" href="/simulation">정책시뮬레이션</Link></div>
   </>;
 }

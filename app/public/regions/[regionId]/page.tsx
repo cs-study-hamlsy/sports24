@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import regions from "../../../../data/regions.json";
+import { regions } from "../../../../lib/regions";
 import PublicPage from "../../public-pages";
 
 export const metadata: Metadata = { title: "지역 체육현황 — 운동24" };

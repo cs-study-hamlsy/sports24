@@ -378,6 +378,9 @@ tbody th { text-align: left; font-weight: 400; }
 .compare-metrics-table td { width: 13%; }
 .compare-metrics-table .baseline-cell { color: #777; }
 .best-cell { color: #2055a0; background: #eaf1fa; font-weight: 700; }
+.peer-score-table { min-width: 720px; }
+.peer-score-table .best-cell-row { background: #eaf1fa; }
+.peer-score-table .best-cell-row th, .peer-score-table .best-cell-row td { font-weight: 700; }
 .comparison-notes-table { min-width: 800px; }
 .comparison-notes-table th:first-child { width: 10%; }
 .comparison-notes-table th:nth-child(2), .comparison-notes-table th:nth-child(3) { width: 45%; }

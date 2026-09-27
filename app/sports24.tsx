@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import regions from "../data/regions.json";
+import { region, regions } from "../lib/regions";
 import { baselineMetrics, changesLabel, courseBudget, demoScenarios, metricNames, Scenario, usedCourses } from "../data/scenarios";
 import { calculateSupplyMetrics, describeScenario } from "../lib/simulation";
 import { AppShell, DataTable, Section, SideItem } from "./ui";
@@ -11,11 +11,11 @@ import { AppShell, DataTable, Section, SideItem } from "./ui";
 type View = "overview" | "simulation" | "result" | "compare";
 type Region = (typeof regions)[number];
 type Course = Region["courses"][number];
+// region은 lib/regions.ts에서 유사 지역 선정 결과로 비교값이 계산된 기준지역이다.
 type LiveCourse = { brno: string; facil_sn: string; course_no: string; item_nm: string; course_nm: string; lectr_nm: string; lectr_weekday_val: string; settl_amt: string };
 type CourseSearch = { item_nm: string; course_nm: string; brno: string; facil_sn: string };
 type CourseResponse = { pageNo: number; numOfRows: number; totalCount: number; items: LiveCourse[]; error?: string };
 
-const region = regions[0];
 const ageLabels = ["청소년", "청년", "중장년", "고령(65세 이상)"];
 const editableSports = ["태권도", "수영", "배드민턴", "생활체조", "요가·필라테스", "기타"];
 const paths: Record<View, string> = { overview: "/", simulation: "/simulation", result: "/result", compare: "/compare" };

@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import regions from "../../data/regions.json";
+import { region } from "../../lib/regions";
 import { changesLabel, demoScenarios, metricNames } from "../../data/scenarios";
 import { DataTable, Section, BrandLockup } from "../ui";
 
 type PublicView = "home" | "region" | "policies" | "policy";
-const region = regions[0];
 
 function PublicShell({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return <div className="public-shell">
