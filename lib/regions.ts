@@ -13,6 +13,7 @@ type RawRegion = {
   asOfMonth?: string;
   totalPopulation: number;
   facilities: number;
+  facilityTypes: { type: string; count: number }[];
   /** 연령 구성 비율(%) 청소년 / 청년 / 중장년 / 고령 */
   population: number[];
   courses: { sport: string; count: number }[];
@@ -21,7 +22,7 @@ type RawRegion = {
 
 const baseData = (regionsData as {
   id: string; label: string; shortName: string; asOfMonth?: string;
-  totalPopulation: number; facilities: number;
+  totalPopulation: number; facilities: number; facilityTypes: { type: string; count: number }[];
   population: { region: number[]; comparison: number[] };
   courses: { sport: string; count: number }[]; analysis?: string[];
 }[])[0];
@@ -30,14 +31,14 @@ const baseData = (regionsData as {
 const rawRegions: RawRegion[] = [
   {
     id: baseData.id, label: baseData.label, shortName: baseData.shortName,
-    asOfMonth: baseData.asOfMonth, totalPopulation: baseData.totalPopulation, facilities: baseData.facilities,
+    asOfMonth: baseData.asOfMonth, totalPopulation: baseData.totalPopulation, facilities: baseData.facilities, facilityTypes: baseData.facilityTypes,
     population: baseData.population.region,
     courses: baseData.courses.map((course) => ({ sport: course.sport, count: course.count })),
     analysis: baseData.analysis,
   },
   ...candidates.map((candidate) => ({
     id: candidate.id, label: candidate.label, shortName: candidate.shortName,
-    totalPopulation: candidate.totalPopulation, facilities: candidate.facilities,
+    totalPopulation: candidate.totalPopulation, facilities: candidate.facilities, facilityTypes: candidate.facilityTypes,
     population: [...candidate.population],
     courses: candidate.courses.map((course) => ({ sport: course.sport, count: course.count })),
   })),
@@ -123,7 +124,7 @@ function enrich(target: RawRegion) {
   const analysis = target.analysis?.length ? target.analysis : describeGaps(courses);
   return {
     id: target.id, label: target.label, shortName: target.shortName, asOfMonth: asOfMonth,
-    totalPopulation: target.totalPopulation, facilities: target.facilities,
+    totalPopulation: target.totalPopulation, facilities: target.facilities, facilityTypes: target.facilityTypes,
     comparisonLabel: peerRegions.map((peer) => peer.shortName).join(", "),
     population, courses, analysis, rankedPeers, similarPeers,
   };

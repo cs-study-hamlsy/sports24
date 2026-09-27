@@ -16,6 +16,9 @@ const AS_OF_MONTH = "2026-08";
 const POPULATION_BASE = `https://api.odcloud.kr/api/15097972/v1/${POPULATION_UDDI}`;
 const FACILITY_BASE = "https://apis.data.go.kr/B551014/SRVC_API_SFMS_FACI/TODZ_API_SFMS_FACI";
 
+// 시설 조정 시뮬레이션 기준값으로 쓸 대표 공공 체육시설 유형. 값이 작을수록 유사하게 비교된다.
+const FACILITY_TYPES = ["간이운동장", "체력단련장", "수영장", "축구장", "테니스장"];
+
 // 대상 지역과 종목별 강좌(시연값). sido/sigungu는 공공데이터의 시도명/시군구명과 정확히 일치해야 한다.
 const registry = {
   base: {
@@ -93,12 +96,13 @@ async function fetchPopulation(key, sido, sigungu) {
   return { totalPopulation: total, population: buckets.map((value) => Math.round((value / total) * 1000) / 10) };
 }
 
-// cpb_nm(시군구)로 조회해 정상운영 등록 체육시설 수를 센다. 타 시도 동명 시군구는 시도명으로 걸러낸다.
-async function fetchFacilityCount(key, sido, sigungu) {
+// cpb_nm(시군구)로 조회해 정상운영 등록 체육시설 수와 대표 유형별 수를 센다. 타 시도 동명 시군구는 시도명으로 걸러낸다.
+async function fetchFacilities(key, sido, sigungu) {
   let pageNo = 1;
   let total = Infinity;
   let active = 0;
   let fetched = 0;
+  const byType = Object.fromEntries(FACILITY_TYPES.map((type) => [type, 0]));
   while (fetched < total) {
     const url = `${FACILITY_BASE}?serviceKey=${key}&pageNo=${pageNo}&numOfRows=1000&resultType=JSON&cpb_nm=${encodeURIComponent(sigungu)}`;
     const data = await fetchJson(url);
@@ -110,22 +114,25 @@ async function fetchFacilityCount(key, sido, sigungu) {
     for (const row of rows) {
       const status = String(row.faci_stat_nm ?? "");
       const ctpv = String(row.addr_ctpv_nm ?? "").trim();
-      if (status.includes("정상") && (ctpv === "" || ctpv === sido)) active++;
+      if (!status.includes("정상") || (ctpv !== "" && ctpv !== sido)) continue;
+      active++;
+      const type = String(row.ftype_nm ?? "").trim();
+      if (type in byType) byType[type]++;
     }
     fetched += rows.length;
     pageNo++;
     if (pageNo > 30) break;
   }
-  return active;
+  return { active, facilityTypes: FACILITY_TYPES.map((type) => ({ type, count: byType[type] })) };
 }
 
 async function enrich(key, target) {
   const [population, facilities] = await Promise.all([
     fetchPopulation(key.pop, target.sido, target.sigungu),
-    fetchFacilityCount(key.faci, target.sido, target.sigungu),
+    fetchFacilities(key.faci, target.sido, target.sigungu),
   ]);
-  console.log(`  ${target.shortName}: 인구 ${population.totalPopulation.toLocaleString()} ${JSON.stringify(population.population)}, 시설 ${facilities}`);
-  return { ...target, ...population, facilities };
+  console.log(`  ${target.shortName}: 인구 ${population.totalPopulation.toLocaleString()} ${JSON.stringify(population.population)}, 시설 ${facilities.active} ${JSON.stringify(facilities.facilityTypes.map((f) => f.count))}`);
+  return { ...target, ...population, facilities: facilities.active, facilityTypes: facilities.facilityTypes };
 }
 
 function shareOf(courses) {
@@ -150,7 +157,7 @@ async function main() {
   const regionJson = [{
     id: base.id, label: base.label, shortName: base.shortName, comparisonLabel: base.comparisonLabel,
     asOfMonth: AS_OF_MONTH,
-    totalPopulation: base.totalPopulation, facilities: base.facilities,
+    totalPopulation: base.totalPopulation, facilities: base.facilities, facilityTypes: base.facilityTypes,
     population: { region: base.population, comparison: base.population },
     courses: courses.map((course) => ({ ...course, comparison: course.share })),
     analysis: base.analysis,
@@ -165,6 +172,7 @@ async function main() {
     totalPopulation: ${candidate.totalPopulation},
     population: [${candidate.population.join(", ")}],
     facilities: ${candidate.facilities},
+    facilityTypes: [${candidate.facilityTypes.map((f) => `{ type: ${JSON.stringify(f.type)}, count: ${f.count} }`).join(", ")}],
     courses: [
 ${candidate.courses.map((course) => `      { sport: ${JSON.stringify(course.sport)}, count: ${course.count} },`).join("\n")}
     ],
@@ -184,6 +192,8 @@ export type CandidateRegion = {
   population: [number, number, number, number];
   /** 정상운영 등록 체육시설 수 (실측) */
   facilities: number;
+  /** 대표 유형별 정상운영 시설 수 (실측) */
+  facilityTypes: { type: string; count: number }[];
   /** 종목별 등록 강좌 수 (시연값) */
   courses: { sport: string; count: number }[];
 };

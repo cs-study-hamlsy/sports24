@@ -7,6 +7,28 @@
     "asOfMonth": "2026-08",
     "totalPopulation": 365379,
     "facilities": 926,
+    "facilityTypes": [
+      {
+        "type": "간이운동장",
+        "count": 216
+      },
+      {
+        "type": "체력단련장",
+        "count": 96
+      },
+      {
+        "type": "수영장",
+        "count": 1
+      },
+      {
+        "type": "축구장",
+        "count": 14
+      },
+      {
+        "type": "테니스장",
+        "count": 10
+      }
+    ],
     "population": {
       "region": [
         15.8,
