@@ -1,30 +1,51 @@
 import regionsData from "../data/regions.json";
-import { candidates, type CandidateRegion } from "../data/candidates";
+import { candidates } from "../data/candidates";
 
 // 유사 지역 선정과 비교지역 평균 계산을 코드로 수행한다.
-// 모든 입력은 시연값이며, 실측 정제 데이터가 확보되면 data/*를 교체하면 결과가 다시 계산된다.
+// 인구(totalPopulation, population)와 시설 수(facilities)는 실측값, 종목별 강좌는 시연값이다.
+// data/*를 교체하면(예: npm run build-data) 모든 결과가 다시 계산된다.
 
 type RawRegion = {
   id: string;
   label: string;
   shortName: string;
-  comparisonLabel: string;
+  comparisonLabel?: string;
   asOfMonth?: string;
   totalPopulation: number;
   facilities: number;
-  population: { region: number[]; comparison: number[] };
-  courses: { sport: string; count: number; share: number; comparison: number }[];
-  analysis: string[];
+  /** 연령 구성 비율(%) 청소년 / 청년 / 중장년 / 고령 */
+  population: number[];
+  courses: { sport: string; count: number }[];
+  analysis?: string[];
 };
 
-const base = (regionsData as RawRegion[])[0];
+const baseData = (regionsData as {
+  id: string; label: string; shortName: string; asOfMonth?: string;
+  totalPopulation: number; facilities: number;
+  population: { region: number[]; comparison: number[] };
+  courses: { sport: string; count: number }[]; analysis?: string[];
+}[])[0];
 
-/** 인구·시설 실측 데이터의 기준월(YYYY-MM). 강좌 데이터는 시연값이다. */
-export const asOfMonth = base.asOfMonth ?? "";
+// 기준지역(원주)과 후보 지역을 동일한 원시 형태로 합쳐 모두 조회 가능한 지역으로 다룬다.
+const rawRegions: RawRegion[] = [
+  {
+    id: baseData.id, label: baseData.label, shortName: baseData.shortName,
+    asOfMonth: baseData.asOfMonth, totalPopulation: baseData.totalPopulation, facilities: baseData.facilities,
+    population: baseData.population.region,
+    courses: baseData.courses.map((course) => ({ sport: course.sport, count: course.count })),
+    analysis: baseData.analysis,
+  },
+  ...candidates.map((candidate) => ({
+    id: candidate.id, label: candidate.label, shortName: candidate.shortName,
+    totalPopulation: candidate.totalPopulation, facilities: candidate.facilities,
+    population: [...candidate.population],
+    courses: candidate.courses.map((course) => ({ sport: course.sport, count: course.count })),
+  })),
+];
 
-/** 후보 지역이 기준지역과 얼마나 다른지를 0(동일)에 가까울수록 유사하게 계산한다. */
+/** 두 지역이 얼마나 다른지를 0(동일)에 가까울수록 유사하게 계산한 결과. */
 export type PeerDistance = {
-  region: CandidateRegion;
+  region: RawRegion;
   /** 연령 구성 차이(%p 절대합의 1/2, 0~100) */
   populationGap: number;
   /** 인구 규모 상대 차이(%) */
@@ -41,73 +62,88 @@ export type PeerDistance = {
 
 // 가중치: 연령 구성 유사성을 가장 크게 보고, 인구 규모·강좌 총량·시설 수 순으로 반영한다.
 const WEIGHTS = { population: 0.4, size: 0.3, course: 0.15, facility: 0.15 } as const;
+export const PEER_COUNT = 3;
 
 function relativeGap(a: number, b: number) {
-  const larger = Math.max(a, b, 1);
-  return (Math.abs(a - b) / larger) * 100;
+  return (Math.abs(a - b) / Math.max(a, b, 1)) * 100;
 }
 
 function totalCourses(courses: { count: number }[]) {
   return courses.reduce((sum, course) => sum + course.count, 0);
 }
 
-export function peerDistance(candidate: CandidateRegion): PeerDistance {
-  const populationGap = base.population.region.reduce((sum, value, index) => sum + Math.abs(value - candidate.population[index]), 0) / 2;
-  const sizeGap = relativeGap(base.totalPopulation, candidate.totalPopulation);
-  const courseGap = relativeGap(totalCourses(base.courses), totalCourses(candidate.courses));
-  const facilityGap = relativeGap(base.facilities, candidate.facilities);
+function round1(value: number) {
+  return Math.round(value * 10) / 10;
+}
+
+function distanceBetween(target: RawRegion, other: RawRegion): PeerDistance {
+  const populationGap = target.population.reduce((sum, value, index) => sum + Math.abs(value - (other.population[index] ?? 0)), 0) / 2;
+  const sizeGap = relativeGap(target.totalPopulation, other.totalPopulation);
+  const courseGap = relativeGap(totalCourses(target.courses), totalCourses(other.courses));
+  const facilityGap = relativeGap(target.facilities, other.facilities);
   const distance = WEIGHTS.population * populationGap + WEIGHTS.size * sizeGap + WEIGHTS.course * courseGap + WEIGHTS.facility * facilityGap;
   return {
-    region: candidate,
-    populationGap: Math.round(populationGap * 10) / 10,
-    sizeGap: Math.round(sizeGap * 10) / 10,
-    courseGap: Math.round(courseGap * 10) / 10,
-    facilityGap: Math.round(facilityGap * 10) / 10,
-    distance: Math.round(distance * 10) / 10,
-    similarity: Math.max(0, Math.round(100 - distance)),
+    region: other,
+    populationGap: round1(populationGap), sizeGap: round1(sizeGap), courseGap: round1(courseGap), facilityGap: round1(facilityGap),
+    distance: round1(distance), similarity: Math.max(0, Math.round(100 - distance)),
   };
 }
 
-export const PEER_COUNT = 3;
-
-/** 전체 후보의 거리를 계산해 유사한 순서로 정렬한다. */
-export const rankedPeers: PeerDistance[] = candidates
-  .map(peerDistance)
-  .sort((left, right) => left.distance - right.distance);
-
-/** 선정된 상위 유사 지역 */
-export const similarPeers: PeerDistance[] = rankedPeers.slice(0, PEER_COUNT);
-
-const selectedRegions = similarPeers.map((peer) => peer.region);
-
-function peerShareAverage(sport: string) {
-  const shares = selectedRegions.map((peer) => {
-    const total = totalCourses(peer.courses) || 1;
-    return ((peer.courses.find((course) => course.sport === sport)?.count ?? 0) / total) * 100;
-  });
+function peerShareAverage(peers: RawRegion[], sport: string) {
+  const shares = peers.map((peer) => ((peer.courses.find((course) => course.sport === sport)?.count ?? 0) / (totalCourses(peer.courses) || 1)) * 100);
   return shares.reduce((sum, value) => sum + value, 0) / (shares.length || 1);
 }
 
-function peerPopulationAverage(index: number) {
-  const values = selectedRegions.map((peer) => peer.population[index]);
-  return values.reduce((sum, value) => sum + value, 0) / (values.length || 1);
+// 종목 구성 차이에서 가장 두드러진 과다·과소 종목을 문장으로 만든다(강좌는 시연값 기준).
+function describeGaps(courses: { sport: string; share: number; comparison: number }[]) {
+  const rated = courses.filter((course) => course.sport !== "기타").map((course) => ({ ...course, gap: course.share - course.comparison }));
+  if (!rated.length) return [] as string[];
+  const high = [...rated].sort((left, right) => right.gap - left.gap)[0];
+  const low = [...rated].sort((left, right) => left.gap - right.gap)[0];
+  const lines: string[] = [];
+  if (high && high.gap > 0.5) lines.push(`${high.sport} 강좌 비중이 ${high.share.toFixed(1)}%로 유사지역 평균(${high.comparison.toFixed(1)}%) 대비 ${high.gap.toFixed(1)}%p 높음`);
+  if (low && low.gap < -0.5) lines.push(`${low.sport} 강좌 비중이 ${low.share.toFixed(1)}%로 유사지역 평균(${low.comparison.toFixed(1)}%) 대비 ${Math.abs(low.gap).toFixed(1)}%p 낮음`);
+  return lines;
 }
 
-const baseTotal = totalCourses(base.courses) || 1;
+function enrich(target: RawRegion) {
+  const rankedPeers = rawRegions.filter((other) => other.id !== target.id).map((other) => distanceBetween(target, other)).sort((left, right) => left.distance - right.distance);
+  const similarPeers = rankedPeers.slice(0, PEER_COUNT);
+  const peerRegions = similarPeers.map((peer) => peer.region);
+  const total = totalCourses(target.courses) || 1;
+  const courses = target.courses.map((course) => ({
+    sport: course.sport, count: course.count,
+    share: round1((course.count / total) * 100),
+    comparison: round1(peerShareAverage(peerRegions, course.sport)),
+  }));
+  const population = {
+    region: target.population,
+    comparison: target.population.map((_, index) => round1(peerRegions.reduce((sum, peer) => sum + (peer.population[index] ?? 0), 0) / (peerRegions.length || 1))),
+  };
+  const analysis = target.analysis?.length ? target.analysis : describeGaps(courses);
+  return {
+    id: target.id, label: target.label, shortName: target.shortName, asOfMonth: asOfMonth,
+    totalPopulation: target.totalPopulation, facilities: target.facilities,
+    comparisonLabel: peerRegions.map((peer) => peer.shortName).join(", "),
+    population, courses, analysis, rankedPeers, similarPeers,
+  };
+}
 
-// 선정된 유사 지역에서 계산한 종목별 비중 평균과 연령 구성 평균을 기준지역 비교값으로 사용한다.
-export const region = {
-  ...base,
-  comparisonLabel: selectedRegions.map((peer) => peer.shortName).join(", "),
-  population: {
-    region: base.population.region,
-    comparison: base.population.comparison.map((_, index) => Math.round(peerPopulationAverage(index) * 10) / 10),
-  },
-  courses: base.courses.map((course) => ({
-    ...course,
-    share: Math.round((course.count / baseTotal) * 1000) / 10,
-    comparison: Math.round(peerShareAverage(course.sport) * 10) / 10,
-  })),
-};
+/** 인구·시설 실측 데이터의 기준월(YYYY-MM). 강좌 데이터는 시연값이다. */
+export const asOfMonth = baseData.asOfMonth ?? "";
 
-export const regions = [region];
+/** 조회 가능한 모든 지역(기준지역 + 후보). 각 지역은 자기 유사지역과 비교값을 코드로 계산해 갖는다. */
+export const regions = rawRegions.map(enrich);
+
+export type Region = (typeof regions)[number];
+
+export function getRegion(id: string): Region {
+  return regions.find((region) => region.id === id) ?? regions[0];
+}
+
+/** 기본 기준지역(원주). 단일 지역을 쓰는 화면에서 사용한다. */
+export const region = getRegion(baseData.id);
+
+// 유사지역 비교 화면 등 기본 지역 기준으로 동작하는 화면용 단축 export.
+export const rankedPeers = region.rankedPeers;
+export const similarPeers = region.similarPeers;

@@ -12,5 +12,5 @@ export function generateStaticParams() {
 export default async function Page({ params }: { params: Promise<{ regionId: string }> }) {
   const { regionId } = await params;
   if (!regions.some((region) => region.id === regionId)) notFound();
-  return <PublicPage view="region" />;
+  return <PublicPage view="region" regionId={regionId} />;
 }
