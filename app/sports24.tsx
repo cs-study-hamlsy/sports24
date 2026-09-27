@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { region, regions } from "../lib/regions";
+import { asOfMonth, region, regions } from "../lib/regions";
 import { baselineMetrics, changesLabel, courseBudget, demoScenarios, metricNames, Scenario, usedCourses } from "../data/scenarios";
 import { calculateSupplyMetrics, describeScenario } from "../lib/simulation";
 import { AppShell, DataTable, Section, SideItem } from "./ui";
@@ -349,9 +349,14 @@ function Overview({ onSimulation }: { onSimulation: () => void }) {
       <label htmlFor="comparison-region">비교지역</label><select id="comparison-region" defaultValue="similar"><option value="similar">{currentRegion.comparisonLabel}</option></select>
       <button className="primary-button" type="submit">조회</button>
     </form>
+    <div className="region-summary-strip">
+      <div><span>총 주민등록 인구</span><strong>{currentRegion.totalPopulation.toLocaleString("ko-KR")}명</strong><small>실측 · 기준 {asOfMonth}</small></div>
+      <div><span>정상운영 등록 체육시설</span><strong>{currentRegion.facilities.toLocaleString("ko-KR")}개소</strong><small>전국체육시설 정보 API 실측</small></div>
+      <div><span>등록 강좌</span><strong>{totalCourses}개</strong><small>시연값 · 지역 식별 자료 확보 시 실측 전환</small></div>
+    </div>
     <div className="overview-grid">
       <Section title="주요지표"><DataTable label="주요지표 표" className="metrics-table"><thead><tr><th scope="col">지표명</th><th scope="col">값</th><th scope="col">판정</th><th scope="col">비고</th></tr></thead><tbody>{metricNames.map((name, index) => { const value = calculateSupplyMetrics(currentRegion.courses)[index]; return <tr key={name}><th scope="row">{name}</th><td>{value ?? "—"}</td><td>{value === null ? "산출 불가" : "참고"}</td><td>{["유사지역 종목 비중과의 일치도", "종목 비중의 고른 정도", "종목 비중 제곱합(낮을수록 분산)", "연령별 실제 수요·수강 대상 자료 없음", "연령별 실제 수요·수강 대상 자료 없음"][index]}</td></tr>; })}</tbody></DataTable><p className="table-note">※ 현재 강좌 수와 비교지역 비중은 목업 시연용 예시값이며 실제 지역 통계가 아닙니다.</p></Section>
-      <div id="population"><Section title="연령별 인구 구성"><DataTable label="연령별 인구 구성 표"><thead><tr><th scope="col">구분</th>{ageLabels.map((label) => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody><tr><th scope="row">{currentRegion.shortName}</th>{currentRegion.population.region.map((value, index) => <td className={index === 3 ? "danger" : ""} key={ageLabels[index]}>{value}%</td>)}</tr><tr><th scope="row">비교지역 평균</th>{currentRegion.population.comparison.map((value, index) => <td key={ageLabels[index]}>{value}%</td>)}</tr></tbody></DataTable><p className="table-note">※ 인구구조는 잠재 수요 참고용이며 종목 선호를 의미하지 않음</p></Section></div>
+      <div id="population"><Section title="연령별 인구 구성"><DataTable label="연령별 인구 구성 표"><thead><tr><th scope="col">구분</th>{ageLabels.map((label) => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody><tr><th scope="row">{currentRegion.shortName}</th>{currentRegion.population.region.map((value, index) => <td className={index === 3 ? "danger" : ""} key={ageLabels[index]}>{value}%</td>)}</tr><tr><th scope="row">비교지역 평균</th>{currentRegion.population.comparison.map((value, index) => <td key={ageLabels[index]}>{value}%</td>)}</tr></tbody></DataTable><p className="table-note">※ 연령별 인구는 행정안전부 주민등록 인구(기준 {asOfMonth}) 실측값입니다. 잠재 수요 참고용이며 종목 선호를 의미하지 않습니다.</p></Section></div>
       <div id="courses"><Section title="종목별 강좌 현황" unit="(단위: 개, %)"><DataTable label="종목별 강좌 현황 표"><thead><tr><th scope="col">종목</th><th scope="col">강좌수</th><th scope="col">비중</th><th scope="col">비교지역 평균</th><th scope="col">차이</th></tr></thead><tbody>{currentRegion.courses.map((course) => { const difference = course.share - course.comparison; return <tr key={course.sport}><th scope="row">{course.sport}</th><td>{course.count}</td><td>{course.share.toFixed(1)}</td><td>{course.comparison.toFixed(1)}</td><td className={Math.abs(difference) >= 7 ? "danger" : ""}>{difference > 0 ? "+" : ""}{difference.toFixed(1)}</td></tr>; })}<tr className="total-row"><th scope="row">합계</th><td>{totalCourses}</td><td>100.0</td><td>100.0</td><td /></tr></tbody></DataTable></Section></div>
       <Section title="분석의견"><div className="analysis-box"><h3>현황 분석의견 <span>(시연 데이터 기준)</span></h3><ol>{currentRegion.analysis.slice(0, 2).map((item) => <li key={item}>{item}</li>)}<li>연령별 강좌 적합도는 수강 대상·실제 수요 자료가 없어 판단하지 않습니다.</li></ol></div></Section>
     </div>
@@ -364,7 +369,76 @@ function Overview({ onSimulation }: { onSimulation: () => void }) {
     }} />
     <div className="page-actions"><button type="button" className="secondary-button" onClick={() => downloadCsv(`${currentRegion.shortName}-체육공급현황.csv`, [["종목", "강좌수", "비중", "비교지역 평균"], ...currentRegion.courses.map((course) => [course.sport, course.count, course.share, course.comparison])])}>CSV 다운로드</button><button type="button" className="secondary-button" onClick={() => window.print()}>인쇄</button><button type="button" className="primary-button" onClick={onSimulation}>정책시뮬레이션</button></div>
     <LiveCourseLookup />
+    <LiveFacilityLookup />
   </>;
+}
+
+type LiveFacility = { faci_nm: string; ftype_nm: string; fcob_nm: string; faci_stat_nm: string; inout_gbn_nm: string; addr_ctpv_nm: string; addr_cpb_nm: string; faci_road_addr: string };
+type FacilitySearch = { cpb_nm: string; ftype_nm: string; faci_nm: string };
+type FacilityResponse = { pageNo: number; numOfRows: number; totalCount: number; items: LiveFacility[]; error?: string };
+
+function LiveFacilityLookup() {
+  const [search, setSearch] = useState<FacilitySearch>({ cpb_nm: region.shortName, ftype_nm: "", faci_nm: "" });
+  const [committed, setCommitted] = useState<FacilitySearch | null>(null);
+  const [result, setResult] = useState<FacilityResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const requestRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => requestRef.current?.abort(), []);
+
+  async function load(pageNo: number, filters: FacilitySearch) {
+    requestRef.current?.abort();
+    const controller = new AbortController();
+    requestRef.current = controller;
+    setLoading(true);
+    setError("");
+    const params = new URLSearchParams({ pageNo: String(pageNo), numOfRows: "10" });
+    for (const [key, value] of Object.entries(filters)) if (value.trim()) params.set(key, value.trim());
+    try {
+      const response = await fetch(`/api/facilities?${params}`, { signal: controller.signal });
+      const data = await response.json() as FacilityResponse;
+      if (!response.ok) throw new Error(data.error || "체육시설 정보를 불러오지 못했습니다.");
+      if (controller.signal.aborted) return;
+      setResult(data);
+      setCommitted(filters);
+    } catch (caught) {
+      if (controller.signal.aborted) return;
+      setError(caught instanceof Error ? caught.message : "체육시설 정보를 불러오지 못했습니다.");
+      setResult(null);
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
+    }
+  }
+
+  const fields: { key: keyof FacilitySearch; label: string; placeholder: string }[] = [
+    { key: "cpb_nm", label: "시군구", placeholder: "예: 원주시" },
+    { key: "ftype_nm", label: "시설유형", placeholder: "예: 수영장" },
+    { key: "faci_nm", label: "시설명", placeholder: "예: 종합체육관" },
+  ];
+  const first = result ? (result.pageNo - 1) * result.numOfRows + 1 : 0;
+  const last = result ? Math.min(result.pageNo * result.numOfRows, result.totalCount) : 0;
+
+  return <details className="live-courses" id="live-facilities">
+    <summary>전국체육시설 정보 실시간 조회</summary>
+    <p className="table-note">국민체육진흥공단 전국체육시설 정보 API의 실측 데이터입니다. 위 “정상운영 등록 체육시설” 수치와 같은 출처이며, 폐업 시설도 함께 조회됩니다.</p>
+    <form className="course-search-form" noValidate onSubmit={(event) => { event.preventDefault(); void load(1, search); }}>
+      {fields.map(({ key, label, placeholder }) => <div className="course-search-field" key={key}>
+        <label htmlFor={`faci-${key}`}>{label}</label>
+        <div className="course-search-input"><input id={`faci-${key}`} value={search[key]} maxLength={100} placeholder={placeholder} onChange={(event) => setSearch((current) => ({ ...current, [key]: event.target.value }))} />
+          {search[key] && <button type="button" aria-label={`${label} 지우기`} onClick={() => { setSearch((current) => ({ ...current, [key]: "" })); }}>×</button>}
+        </div>
+      </div>)}
+      <button type="submit" className="primary-button" disabled={loading}>{loading ? "조회 중" : "시설 조회"}</button>
+    </form>
+    <div className="live-result" aria-live="polite">
+      {loading ? <p>체육시설을 조회하고 있습니다.</p> : error ? <p className="live-error" role="alert">{error}</p> : !result ? <p>시군구·시설유형·시설명을 입력하고 시설 조회를 누르세요.</p> : result.items.length === 0 ? <p>조회된 시설이 없습니다. 검색 조건을 바꿔 다시 조회해 주세요.</p> : <>
+        <p>총 {result.totalCount.toLocaleString("ko-KR")}건 중 {first.toLocaleString("ko-KR")}–{last.toLocaleString("ko-KR")}건</p>
+        <DataTable label="전국체육시설 조회 결과" className="live-course-table"><thead><tr><th scope="col">시설명</th><th scope="col">유형</th><th scope="col">업종</th><th scope="col">상태</th><th scope="col">실내외</th><th scope="col">주소</th></tr></thead><tbody>{result.items.map((facility, index) => <tr key={`${facility.faci_nm}-${index}`}><th scope="row">{facility.faci_nm || "—"}</th><td>{facility.ftype_nm || "—"}</td><td>{facility.fcob_nm || "—"}</td><td className={facility.faci_stat_nm.includes("폐업") ? "danger" : ""}>{facility.faci_stat_nm || "—"}</td><td>{facility.inout_gbn_nm || "—"}</td><td className="text-left">{facility.faci_road_addr || "—"}</td></tr>)}</tbody></DataTable>
+        <div className="course-pagination"><button type="button" className="secondary-button" disabled={result.pageNo <= 1} onClick={() => committed && void load(result.pageNo - 1, committed)}>이전</button><span>{result.pageNo}페이지</span><button type="button" className="secondary-button" disabled={last >= result.totalCount} onClick={() => committed && void load(result.pageNo + 1, committed)}>다음</button></div>
+      </>}
+    </div>
+  </details>;
 }
 
 function LiveCourseLookup() {

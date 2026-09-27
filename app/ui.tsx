@@ -66,7 +66,7 @@ export function AppShell({
               ? <Link key={item.label} href={item.href} className={item.current ? "selected" : ""} aria-current={item.current ? "page" : undefined}>· {item.label}</Link>
               : <span key={item.label} aria-disabled="true"><span>· {item.label}</span>{item.disabledReason && <small>{item.disabledReason}</small>}</span>)}
           </section>
-          <section className="source-box"><h2>연동 대상 데이터</h2><p>스포츠강좌이용권 등록강좌</p><p>전국 체육시설 현황</p><p>주민등록 연령별 인구</p><p>현재 지표는 목업 시연값 기준</p></section>
+          <section className="source-box"><h2>연동 데이터</h2><p>주민등록 연령별 인구 (실측)</p><p>전국체육시설 정보 (실측)</p><p>스포츠강좌이용권 등록강좌 (조회)</p><p>종목별 강좌 지표는 시연값</p></section>
         </aside>
         <main id="main">
           <div className="page-heading">

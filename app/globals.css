@@ -421,6 +421,12 @@ tbody th { text-align: left; font-weight: 400; }
 .summary-strip > div:last-child { border-right: 0; }
 .summary-strip span, .report-meta span { color: var(--color-text-muted); font-size: 0.86em; }
 .summary-strip strong { color: var(--color-primary); font-size: 1.28em; }
+.region-summary-strip { margin: 18px 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--color-border); }
+.region-summary-strip > div { min-height: 84px; padding: 14px 18px; display: flex; flex-direction: column; justify-content: center; gap: 4px; border-right: 1px solid var(--color-border); }
+.region-summary-strip > div:last-child { border-right: 0; }
+.region-summary-strip span { color: var(--color-text-muted); font-size: 0.86em; }
+.region-summary-strip strong { color: var(--color-primary); font-size: 1.32em; }
+.region-summary-strip small { color: var(--color-text-muted); font-size: 0.76em; }
 
 .report-sheet > .content-section { margin-top: 18px; }
 .report-meta { margin-top: 18px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--color-border); }
@@ -512,9 +518,9 @@ tbody th { text-align: left; font-weight: 400; }
   .page-actions { margin-top: 28px; flex-wrap: wrap; }
   .split-actions { align-items: stretch; }
   .split-actions > div { width: 100%; }
-  .summary-strip, .report-meta, .public-summary { grid-template-columns: minmax(0, 1fr); }
-  .summary-strip > div, .report-meta > div, .public-summary > div { border-right: 0; border-bottom: 1px solid var(--color-border); }
-  .summary-strip > div:last-child, .report-meta > div:last-child, .public-summary > div:last-child { border-bottom: 0; }
+  .summary-strip, .report-meta, .public-summary, .region-summary-strip { grid-template-columns: minmax(0, 1fr); }
+  .summary-strip > div, .report-meta > div, .public-summary > div, .region-summary-strip > div { border-right: 0; border-bottom: 1px solid var(--color-border); }
+  .summary-strip > div:last-child, .report-meta > div:last-child, .public-summary > div:last-child, .region-summary-strip > div:last-child { border-bottom: 0; }
   .public-shell main { padding: 26px 18px 42px; }
   .public-header { padding-left: 18px; padding-right: 18px; }
   .public-link-grid { grid-template-columns: minmax(0, 1fr); }

@@ -10,7 +10,7 @@ type PublicView = "home" | "region" | "policies" | "policy";
 // 공개 화면 메타데이터. 실측 정제 데이터가 연결되면 기준월·출처·공개상태를 실제 값으로 교체한다.
 const publicMeta = {
   asOfMonth: "2026년 8월 기준",
-  source: "스포츠강좌이용권 등록강좌 · 주민등록 연령별 인구 (공모전 시연 정제본)",
+  source: "주민등록 연령별 인구·전국체육시설 정보(실측) · 스포츠강좌 등록강좌(시연값)",
   status: "시연 공개",
 };
 // 정책안별 공개 상태(시연값). 실제 서비스에서는 담당자 승인 절차와 연동한다.
@@ -42,7 +42,7 @@ export default function PublicPage({ view, scenarioId = "c" }: { view: PublicVie
 function PublicRegion() {
   const total = region.courses.reduce((sum, course) => sum + course.count, 0);
   return <PublicShell title={`${region.label} 체육현황`} description="지역의 강좌 구성과 비교지역 평균을 공개합니다.">
-    <div className="public-summary"><div><span>등록 강좌</span><strong>{total}개</strong></div><div><span>가장 많은 종목</span><strong>태권도 32개</strong></div><div><span>고령인구 비율</span><strong>26%</strong></div></div>
+    <div className="public-summary"><div><span>총 주민등록 인구</span><strong>{region.totalPopulation.toLocaleString("ko-KR")}명</strong></div><div><span>정상운영 체육시설</span><strong>{region.facilities.toLocaleString("ko-KR")}개소</strong></div><div><span>고령(65세+) 인구 비율</span><strong>{region.population.region[3]}%</strong></div></div>
     <Section title="종목별 강좌 현황" unit="(단위: 개, %)"><DataTable label="시민 공개 종목별 강좌 현황"><thead><tr><th scope="col">종목</th><th scope="col">강좌수</th><th scope="col">지역 비중</th><th scope="col">비교지역 평균</th><th scope="col">설명</th></tr></thead><tbody>{region.courses.map((course) => { const gap = course.share - course.comparison; return <tr key={course.sport}><th scope="row">{course.sport}</th><td>{course.count}</td><td>{course.share.toFixed(1)}</td><td>{course.comparison.toFixed(1)}</td><td>{gap >= 3 ? "비교지역보다 높은 편" : gap <= -3 ? "비교지역보다 낮은 편" : "비슷한 수준"}</td></tr>; })}</tbody></DataTable></Section>
     <Section title="읽을 때 참고하세요"><div className="public-explanation"><p>연령별 인구 비율은 체육 수요를 확정하는 값이 아니라 정책 검토를 위한 참고자료입니다.</p><p>지역별 실제 이용률과 선호 자료가 확보되기 전에는 연령 적합도를 표시하지 않습니다.</p></div></Section>
   </PublicShell>;
