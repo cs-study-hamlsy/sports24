@@ -449,6 +449,11 @@ tbody th { text-align: left; font-weight: 400; }
 .public-heading > p { margin: 0 0 8px; color: var(--color-primary-active); font-weight: 700; }
 .public-heading h1 { margin: 0 0 10px; font-size: 2em; }
 .public-heading > span { color: var(--color-text-muted); }
+.public-meta-bar { margin: 20px 0 4px; padding: 14px 20px; display: flex; flex-wrap: wrap; gap: 10px 28px; background: var(--color-surface-muted); border: 1px solid var(--color-border); }
+.public-meta-bar div { display: flex; gap: 8px; align-items: baseline; }
+.public-meta-bar dt { margin: 0; color: var(--color-text-muted); font-size: 0.9em; }
+.public-meta-bar dd { margin: 0; font-weight: 600; }
+.public-status-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; background: #eaf1fa; color: var(--color-primary-active); font-size: 0.85em; font-weight: 700; }
 .public-link-grid { margin-top: 28px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .public-link-grid a { min-height: 150px; padding: 28px; display: flex; flex-direction: column; justify-content: center; gap: 12px; color: inherit; border: 1px solid var(--color-border); border-top: 5px solid var(--color-primary); text-decoration: none; }
 .public-link-grid a:hover { background: #f7f9fc; }

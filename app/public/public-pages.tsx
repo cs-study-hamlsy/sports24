@@ -7,10 +7,27 @@ import { DataTable, Section, BrandLockup } from "../ui";
 
 type PublicView = "home" | "region" | "policies" | "policy";
 
+// 공개 화면 메타데이터. 실측 정제 데이터가 연결되면 기준월·출처·공개상태를 실제 값으로 교체한다.
+const publicMeta = {
+  asOfMonth: "2026년 8월 기준",
+  source: "스포츠강좌이용권 등록강좌 · 주민등록 연령별 인구 (공모전 시연 정제본)",
+  status: "시연 공개",
+};
+// 정책안별 공개 상태(시연값). 실제 서비스에서는 담당자 승인 절차와 연동한다.
+const policyStatus: Record<string, string> = { a: "공개 승인", b: "공개 승인", c: "공개 승인" };
+
+function MetaBar() {
+  return <dl className="public-meta-bar">
+    <div><dt>데이터 기준월</dt><dd>{publicMeta.asOfMonth}</dd></div>
+    <div><dt>출처</dt><dd>{publicMeta.source}</dd></div>
+    <div><dt>공개 상태</dt><dd><span className="public-status-badge">{publicMeta.status}</span></dd></div>
+  </dl>;
+}
+
 function PublicShell({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return <div className="public-shell">
     <header className="public-header"><BrandLockup compact /><nav aria-label="시민 공개 메뉴"><Link href="/public">안내</Link><Link href={`/public/regions/${region.id}`}>지역현황</Link><Link href="/public/policies">정책결과</Link><Link href="/">담당자 화면</Link></nav></header>
-    <main><div className="public-heading"><p>운동24 시민 공개정보</p><h1>{title}</h1><span>{description}</span></div>{children}</main>
+    <main><div className="public-heading"><p>운동24 시민 공개정보</p><h1>{title}</h1><span>{description}</span></div><MetaBar />{children}</main>
     <footer><span>운동24</span><span>표시된 수치는 공모전 시연 데이터이며 실제 행정통계가 아닙니다.</span></footer>
   </div>;
 }
@@ -33,7 +50,7 @@ function PublicRegion() {
 
 function PublicPolicies() {
   return <PublicShell title="공개 정책결과" description="시연 정책안의 강좌 조정 내용과 관측 가능한 지표 변화를 확인합니다.">
-    <Section title="원주시 공개 정책안" unit={`총 ${demoScenarios.length}건`}><DataTable label="시민 공개 정책안 목록"><thead><tr><th scope="col">정책안</th><th scope="col">주요 조정</th><th scope="col">등록일</th><th scope="col">상세</th></tr></thead><tbody>{demoScenarios.map((scenario) => <tr key={scenario.id}><th scope="row">{scenario.name}</th><td className="text-left">{changesLabel(scenario.changes)}</td><td>{scenario.date}</td><td><Link className="table-link" href={`/public/policies/${scenario.id}`}>결과 보기</Link></td></tr>)}</tbody></DataTable></Section>
+    <Section title="원주시 공개 정책안" unit={`총 ${demoScenarios.length}건`}><DataTable label="시민 공개 정책안 목록"><thead><tr><th scope="col">정책안</th><th scope="col">주요 조정</th><th scope="col">등록일</th><th scope="col">공개 상태</th><th scope="col">상세</th></tr></thead><tbody>{demoScenarios.map((scenario) => <tr key={scenario.id}><th scope="row">{scenario.name}</th><td className="text-left">{changesLabel(scenario.changes)}</td><td>{scenario.date}</td><td><span className="public-status-badge">{policyStatus[scenario.id] ?? "검토 중"}</span></td><td><Link className="table-link" href={`/public/policies/${scenario.id}`}>결과 보기</Link></td></tr>)}</tbody></DataTable></Section>
     <PublicDataNotice />
   </PublicShell>;
 }
@@ -41,7 +58,7 @@ function PublicPolicies() {
 function PublicPolicy({ scenarioId }: { scenarioId: string }) {
   const scenario = demoScenarios.find((item) => item.id === scenarioId) ?? demoScenarios[2];
   return <PublicShell title={`${scenario.name} 정책결과`} description={`${region.label} 강좌 구성 변경 전후의 핵심 결과입니다.`}>
-    <div className="public-policy-summary"><b>{changesLabel(scenario.changes)}</b><span>등록일 {scenario.date}</span></div>
+    <div className="public-policy-summary"><b>{changesLabel(scenario.changes)}</b><span>등록일 {scenario.date}</span><span className="public-status-badge">{policyStatus[scenario.id] ?? "검토 중"}</span></div>
     <Section title="핵심 변화"><DataTable label="시민 공개 정책안 핵심 지표"><thead><tr><th scope="col">지표</th><th scope="col">정책안 결과</th><th scope="col">의미</th></tr></thead><tbody>{metricNames.slice(0, 3).map((name, index) => <tr key={name}><th scope="row">{name}</th><td><strong>{scenario.metrics[index]}</strong></td><td>{index === 0 ? "비교지역 종목 구성과의 일치도" : index === 1 ? "종목 구성이 고른 정도" : "특정 종목에 집중된 정도(낮을수록 분산)"}</td></tr>)}</tbody></DataTable></Section>
     <Section title="정책 설명"><div className="public-explanation">{scenario.analysis.map((item) => <p key={item}>{item}</p>)}</div></Section>
     <div className="page-actions"><Link className="secondary-button" href="/public/policies">목록</Link><button className="primary-button" type="button" onClick={() => window.print()}>인쇄</button></div>
@@ -49,5 +66,5 @@ function PublicPolicy({ scenarioId }: { scenarioId: string }) {
 }
 
 function PublicDataNotice() {
-  return <aside className="public-data-notice"><b>데이터 안내</b><p>현재 공개 화면은 목업의 원주시 예시값을 사용합니다. 실제 서비스에서는 데이터 기준월과 출처를 함께 제공합니다.</p></aside>;
+  return <aside className="public-data-notice"><b>데이터 안내</b><p>현재 공개 화면은 목업의 원주시 예시값을 사용하며, 위에 데이터 기준월·출처·공개 상태를 함께 표시합니다. 실측 정제 데이터와 담당자 공개 승인 결과가 연결되면 해당 값으로 교체됩니다.</p></aside>;
 }
