@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -16,8 +17,8 @@ export type SideItem = { label: string; href?: string; current?: boolean; disabl
 
 export function BrandLockup({ compact = false }: { compact?: boolean }) {
   return (
-    <Link className={`brand-lockup${compact ? " compact" : ""}`} href="/" aria-label="운동24 지역현황으로 이동">
-      <span className="brand-character-slot" aria-hidden="true" hidden />
+    <Link className={`brand-lockup${compact ? " compact" : ""}`} href="/" aria-label="운동24 캐릭터 동이와 함께 지역현황으로 이동">
+      <Image className="brand-character" src="/brand/dongi.png" width={500} height={500} alt="" preload />
       <span className="brand-wordmark" aria-label="운동24"><b>운동</b><strong>24</strong></span>
       {!compact && <span className="brand-service-name">체육정책 시뮬레이션 시스템</span>}
     </Link>

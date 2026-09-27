@@ -23,6 +23,7 @@
 - [x] 유사지역 비교(`/regions/compare`), 시설 조정(`/simulation/facilities`), 비교 이력(`/compare/history`), 정책 보고서(`/reports/[scenarioId]`) 화면을 추가했다.
 - [x] 시민 공개 안내(`/public`), 지역현황(`/public/regions/[regionId]`), 정책 목록·상세(`/public/policies`) 화면을 추가했다.
 - [x] 운동24 테마의 404, 오류 복구, 라우트 로딩 화면과 다중 화면 UX 계약을 추가했다.
+- [x] 공식 캐릭터 `동이`의 투명 PNG를 브랜드 자산으로 추가하고 공통 `BrandLockup`에 연결해 담당자·시민·시스템 화면에 동일하게 표시했다.
 
 ## 다음에 구현할 부분
 
@@ -37,6 +38,5 @@
 - [ ] 유사 지역 선정 기준과 비교 계산을 코드로 구현한다.
 - [ ] OpenAI API를 서버의 단일 `/api/analyze` Route Handler로 연결한다(`OPENAI_API_KEY` 서버 환경변수). 계산 엔진이 만든 값만 전달하고 Gap, Policy Brief, Policy Review와 대안 설명에 사용한다.
 - [ ] 시민 공개 화면을 실제 정제 데이터와 공개 승인된 정책 결과에 연결하고 기준월·출처·공개 상태를 표시한다.
-- [ ] 공식 운동24 캐릭터의 투명 배경 원본을 전달받으면 `BrandLockup`의 전용 슬롯에 추가하고 데스크톱·모바일 크롭을 검수한다.
 - [ ] 실제 외부 브라우저에서 CSV 파일 저장을 확인하고 전체 데모 흐름을 회귀 점검한다.
 - [ ] Vercel 환경변수와 프로덕션 배포를 설정하고 발표 시나리오를 최종 점검한다.
