@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { asOfMonth, getRegion, region, regions, PEER_COUNT, type Region } from "../lib/regions";
 import { baselineFor, changesLabel, courseBudget, demoScenariosFor, metricNames, Scenario, usedCourses } from "../data/scenarios";
 import { AppShell, DataTable, Section, SideItem } from "./ui";
@@ -103,14 +103,21 @@ function FacilitySimulation() {
 }
 
 function ComparisonHistory() {
-  const rows = useMemo(() => [
-    { id: "20260922-c", date: "2026.09.22", region: region.label, scenarios: "A안 · B안 · C안", owner: "체육진흥과", report: "c" },
-    { id: "20260921-ab", date: "2026.09.21", region: region.label, scenarios: "A안 · B안", owner: "체육진흥과", report: "b" },
-  ], []);
+  const target = useSelectedRegion();
+  const [scenarios, setScenarios] = useState<Scenario[]>(() => demoScenariosFor(region));
+  useEffect(() => {
+    let list: Scenario[] = [];
+    try {
+      const saved = sessionStorage.getItem(`sports24-state-${target.id}`);
+      if (saved) { const parsed = JSON.parse(saved) as { scenarios?: Scenario[] }; if (Array.isArray(parsed.scenarios)) list = parsed.scenarios; }
+    } catch { /* 예시 시나리오로 대체한다. */ }
+    setScenarios(list.length ? list : demoScenariosFor(target));
+  }, [target]);
   return <>
-    <p className="inline-notice neutral-notice">이력은 현재 브라우저 시연 데이터입니다. 서버 저장과 담당자별 영구 이력은 아직 연결하지 않았습니다.</p>
-    <Section title="최근 비교 이력" unit={`총 ${rows.length}건`}><DataTable label="최근 시나리오 비교 이력"><thead><tr><th scope="col">비교일</th><th scope="col">대상지역</th><th scope="col">비교 정책안</th><th scope="col">담당부서</th><th scope="col">결과</th></tr></thead><tbody>{rows.map((row) => <tr key={row.id}><td>{row.date}</td><td>{row.region}</td><td>{row.scenarios}</td><td>{row.owner}</td><td><Link className="table-link" href={`/reports/${row.report}`}>보고서 보기</Link></td></tr>)}</tbody></DataTable></Section>
-    <Section title="저장 범위"><div className="analysis-box"><h3>시연 이력 안내</h3><ol><li>현재는 목업 시나리오의 대표 비교 이력만 표시합니다.</li><li>실제 서비스에서는 비교 대상, 지표 버전, 데이터 기준월을 함께 저장해야 합니다.</li><li>정책안 원본이 변경되어도 기존 보고서의 계산 기준은 보존해야 합니다.</li></ol></div></Section>
+    <div className="filter-bar compact-filter"><span className="filter-label">대상지역</span><strong>{target.label}</strong></div>
+    <p className="inline-notice neutral-notice">이력은 현재 브라우저에 저장된 {target.shortName} 시나리오입니다. 서버 저장과 담당자별 영구 이력은 아직 연결하지 않았습니다.</p>
+    <Section title="최근 비교 이력" unit={`총 ${scenarios.length}건`}><DataTable label="최근 시나리오 비교 이력"><thead><tr><th scope="col">등록일</th><th scope="col">대상지역</th><th scope="col">정책안</th><th scope="col">조정내용</th><th scope="col">담당부서</th><th scope="col">결과</th></tr></thead><tbody>{scenarios.length ? scenarios.map((scenario) => <tr key={scenario.id}><td>{scenario.date}</td><td>{target.shortName}</td><th scope="row">{scenario.name}</th><td className="text-left">{changesLabel(scenario.changes)}</td><td>체육진흥과</td><td><Link className="table-link" href={`/reports/${scenario.id}`}>보고서 보기</Link></td></tr>) : <tr><td colSpan={6} className="empty-row">저장된 시나리오가 없습니다. <Link href="/simulation">강좌 조정으로 이동</Link></td></tr>}</tbody></DataTable></Section>
+    <Section title="저장 범위"><div className="analysis-box"><h3>시연 이력 안내</h3><ol><li>현재는 브라우저 세션에 저장된 {target.shortName} 시나리오만 표시합니다.</li><li>실제 서비스에서는 비교 대상, 지표 버전, 데이터 기준월을 함께 저장해야 합니다.</li><li>정책안 원본이 변경되어도 기존 보고서의 계산 기준은 보존해야 합니다.</li></ol></div></Section>
     <div className="page-actions"><Link className="primary-button" href="/compare">새 비교 시작</Link></div>
   </>;
 }
