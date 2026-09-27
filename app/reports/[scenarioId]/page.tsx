@@ -1,0 +1,16 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { demoScenarios } from "../../../data/scenarios";
+import ExtendedPage from "../../extended-pages";
+
+export const metadata: Metadata = { title: "정책 보고서 — 운동24" };
+
+export function generateStaticParams() {
+  return demoScenarios.map((scenario) => ({ scenarioId: scenario.id }));
+}
+
+export default async function Page({ params }: { params: Promise<{ scenarioId: string }> }) {
+  const { scenarioId } = await params;
+  if (!demoScenarios.some((scenario) => scenario.id === scenarioId)) notFound();
+  return <ExtendedPage view="report" scenarioId={scenarioId} />;
+}

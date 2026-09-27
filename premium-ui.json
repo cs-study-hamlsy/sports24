@@ -1,7 +1,8 @@
 {
-  "profile": "single-screen-product",
+  "profile": "product-admin",
   "sourceRoots": ["app"],
   "locale": "ko-KR",
+  "canonicalMap": "UX-CONTRACT.md",
   "ownership": {
     "Select/Listbox": "native"
   }

@@ -6,6 +6,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import regions from "../data/regions.json";
 import { baselineMetrics, changesLabel, courseBudget, demoScenarios, metricNames, Scenario, usedCourses } from "../data/scenarios";
 import { calculateSupplyMetrics, describeScenario } from "../lib/simulation";
+import { AppShell, DataTable, Section, SideItem } from "./ui";
 
 type View = "overview" | "simulation" | "result" | "compare";
 type Region = (typeof regions)[number];
@@ -67,7 +68,6 @@ function downloadCsv(filename: string, rows: Array<Array<string | number>>) {
 
 export default function Sports24({ view }: { view: View }) {
   const router = useRouter();
-  const [fontScale, setFontScale] = useState(1);
   const [draftName, setDraftName] = useState(demoScenarios[2].name);
   const [draftChanges, setDraftChanges] = useState<Record<string, number>>({ ...demoScenarios[2].changes });
   const [visibleSports, setVisibleSports] = useState(editableSports.slice(0, 5));
@@ -191,45 +191,24 @@ export default function Sports24({ view }: { view: View }) {
     setNotice(`${removed.length}개 시나리오를 목록에서 제거했습니다.`);
   }
 
-  const sideItems = sideMenus[view];
   const sideTargets = view === "overview"
-    ? ["#main", "#courses", "#population", "#courses"]
+    ? ["#main", "#courses", "#population", "/regions/compare"]
     : view === "simulation"
-      ? ["#course-adjustment", "#facility-adjustment", paths.compare]
+      ? ["#course-adjustment", "/simulation/facilities", paths.compare]
       : view === "result"
         ? ["#scenario-info", "#analysis"]
-        : ["#scenario-list", "#comparison"];
+        : ["#scenario-list", "/compare/history"];
+  const sideItems: SideItem[] = sideMenus[view].map((label, index) => ({ label, href: sideTargets[index], current: index === 0 }));
 
   return (
-    <div className="app-shell" style={{ "--font-scale": fontScale } as React.CSSProperties}>
-      <header>
-        <div className="utility-bar">
-          <span>체육진흥과 담당자 님</span><span className="utility-divider" aria-hidden="true" />
-          <span>글자크기</span>
-          <button type="button" className="font-control" onClick={() => setFontScale((value) => Math.min(1.12, value + 0.06))} aria-label="글자 크게">+</button>
-          <button type="button" className="font-control" onClick={() => setFontScale((value) => Math.max(0.94, value - 0.06))} aria-label="글자 작게">−</button>
-        </div>
-        <div className="brand-row"><span className="brand-mark" aria-hidden="true">S</span><strong>SPORTS24</strong><span>체육정책 시뮬레이션 시스템</span></div>
-        <nav className="global-nav" aria-label="주 메뉴">
-          {(Object.keys(paths) as View[]).map((key) => <Link key={key} href={paths[key]} aria-current={view === key ? "page" : undefined}>{navLabels[key]}</Link>)}
-        </nav>
-      </header>
-      <div className="workspace">
-        <aside className="side-panel" aria-label={`${navLabels[view]} 메뉴`}>
-          <section className="side-menu">
-            <h2>{navLabels[view]}</h2>
-            {sideItems.map((item, index) => sideTargets[index] === "#facility-adjustment"
-              ? <span key={item} aria-disabled="true" title="시설 조정은 다음 개발 단계입니다">· {item}</span>
-              : <Link key={item} href={sideTargets[index]} className={index === 0 ? "selected" : ""} aria-current={index === 0 ? "page" : undefined}>· {item}</Link>)}
-          </section>
-          <section className="source-box"><h2>연동 대상 데이터</h2><p>스포츠강좌이용권 등록강좌</p><p>전국 체육시설 현황</p><p>주민등록 연령별 인구</p><p>현재 지표는 목업 시연값 기준</p></section>
-        </aside>
-        <main id="main">
-          <div className="page-heading">
-            <h1><span aria-hidden="true" />{titles[view]}</h1>
-            <nav aria-label="현재 위치">HOME <b aria-hidden="true">›</b> {navLabels[view]} <b aria-hidden="true">›</b> <strong>{view === "simulation" ? "강좌 조정" : view === "result" ? "시나리오 결과" : titles[view]}</strong></nav>
-          </div>
-          {notice && <p className="inline-notice" role="status">{notice}</p>}
+    <AppShell
+      activeNav={view}
+      sideTitle={navLabels[view]}
+      sideItems={sideItems}
+      title={titles[view]}
+      breadcrumb={[navLabels[view], view === "simulation" ? "강좌 조정" : view === "result" ? "시나리오 결과" : titles[view]]}
+      notice={notice}
+    >
 
           {view === "overview" && <Overview onSimulation={() => router.push(paths.simulation)} />}
           {view === "simulation" && <>
@@ -342,13 +321,11 @@ export default function Sports24({ view }: { view: View }) {
                   ...metricNames.map((name, index) => [name, baselineMetrics[index] ?? "산출 불가", ...scenarios.filter((item) => selectedScenarioIds.includes(item.id)).map((item) => metricsFor(item)[index] ?? "산출 불가")]),
                 ])}>CSV 다운로드</button>
                 <button type="button" className="secondary-button" onClick={() => window.print()}>인쇄</button>
-                <button type="button" className="primary-button" onClick={() => { const scenario = scenarios.find((item) => selectedScenarioIds.includes(item.id)); if (scenario) openSavedResult(scenario); else setNotice("보고서로 확인할 시나리오를 선택해 주세요."); }}>보고서 작성</button>
+                <button type="button" className="primary-button" onClick={() => { const scenario = scenarios.find((item) => selectedScenarioIds.includes(item.id)); if (scenario) router.push(`/reports/${scenario.id}`); else setNotice("보고서로 확인할 시나리오를 선택해 주세요."); }}>보고서 작성</button>
               </div>
             </div>
           </>}
-        </main>
-      </div>
-    </div>
+    </AppShell>
   );
 }
 
@@ -454,12 +431,4 @@ function Result({ scenario, onList, onCompare }: { scenario: Scenario; onList: (
     <div id="analysis"><Section title="분석의견"><div className="analysis-box result-analysis"><h3>시나리오 분석의견 <span>(시연 데이터 기반 자동분석)</span></h3><ol>{describeScenario(region.courses, scenario.changes).map((item) => <li key={item}>{item}</li>)}</ol></div></Section></div>
     <div className="page-actions split-actions"><button type="button" className="secondary-button" onClick={onList}>목록</button><div><button type="button" className="secondary-button" disabled title="한글 파일 생성은 다음 개발 단계입니다">한글(HWP) 저장</button><button type="button" className="secondary-button" onClick={() => window.print()}>PDF 저장</button><button type="button" className="secondary-button" onClick={() => window.print()}>인쇄</button><button type="button" className="primary-button" onClick={onCompare}>정책안비교</button></div></div>
   </>;
-}
-
-function Section({ title, unit, children }: { title: string; unit?: string; children: React.ReactNode }) {
-  return <section className="content-section"><div className="section-heading"><h2><span aria-hidden="true" />{title}</h2>{unit && <p>{unit}</p>}</div>{children}</section>;
-}
-
-function DataTable({ label, className = "", children }: { label: string; className?: string; children: React.ReactNode }) {
-  return <div className="table-scroll" role="region" aria-label={label} tabIndex={0}><table className={className}>{children}</table></div>;
 }
