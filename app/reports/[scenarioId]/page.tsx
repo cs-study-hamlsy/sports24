@@ -1,16 +1,15 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { demoScenarios } from "../../../data/scenarios";
+import { scenarioTemplates } from "../../../data/scenarios";
 import ExtendedPage from "../../extended-pages";
 
 export const metadata: Metadata = { title: "정책 보고서 — 운동24" };
 
+// 예시 시나리오는 정적 생성하고, 저장된(saved-*) 시나리오는 요청 시 렌더한다.
 export function generateStaticParams() {
-  return demoScenarios.map((scenario) => ({ scenarioId: scenario.id }));
+  return scenarioTemplates.map((scenario) => ({ scenarioId: scenario.id }));
 }
 
 export default async function Page({ params }: { params: Promise<{ scenarioId: string }> }) {
   const { scenarioId } = await params;
-  if (!demoScenarios.some((scenario) => scenario.id === scenarioId)) notFound();
   return <ExtendedPage view="report" scenarioId={scenarioId} />;
 }

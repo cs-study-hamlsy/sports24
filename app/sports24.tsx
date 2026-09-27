@@ -3,15 +3,16 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { asOfMonth, region, regions } from "../lib/regions";
-import { baselineMetrics, changesLabel, courseBudget, demoScenarios, metricNames, Scenario, usedCourses } from "../data/scenarios";
+import { asOfMonth, getRegion, region as defaultRegion, regions, type Region } from "../lib/regions";
+import { baselineFor, changesLabel, courseBudget, demoScenariosFor, metricNames, Scenario, scenarioTemplates, usedCourses } from "../data/scenarios";
 import { calculateSupplyMetrics, describeScenario } from "../lib/simulation";
 import { AppShell, DataTable, Section, SideItem } from "./ui";
 
 type View = "overview" | "simulation" | "result" | "compare";
-type Region = (typeof regions)[number];
 type Course = Region["courses"][number];
-// region은 lib/regions.ts에서 유사 지역 선정 결과로 비교값이 계산된 기준지역이다.
+// 선택한 지역(activeRegion)에 따라 시뮬레이션·결과·비교가 모두 다시 계산된다.
+const REGION_KEY = "sports24-region";
+const stateKey = (regionId: string) => `sports24-state-${regionId}`;
 type LiveCourse = { brno: string; facil_sn: string; course_no: string; item_nm: string; course_nm: string; lectr_nm: string; lectr_weekday_val: string; settl_amt: string };
 type CourseSearch = { item_nm: string; course_nm: string; brno: string; facil_sn: string };
 type CourseResponse = { pageNo: number; numOfRows: number; totalCount: number; items: LiveCourse[]; error?: string };
@@ -42,7 +43,7 @@ function sameChanges(left: Record<string, number>, right: Record<string, number>
   return editableSports.every((sport) => (left[sport] ?? 0) === (right[sport] ?? 0));
 }
 
-function courseCount(sport: string) {
+function courseCount(region: Region, sport: string) {
   return region.courses.find((course) => course.sport === sport)?.count ?? 0;
 }
 
@@ -50,8 +51,15 @@ function signed(value: number) {
   return `${value > 0 ? "+" : ""}${value}`;
 }
 
-function metricsFor(scenario: Scenario) {
+function metricsFor(region: Region, scenario: Scenario) {
   return calculateSupplyMetrics(region.courses, scenario.changes);
+}
+
+type DemoState = { scenarios: Scenario[]; activeScenarioId: string; previewScenario: Scenario | null; draftName: string; draftChanges: Record<string, number> };
+
+function defaultsFor(region: Region): DemoState {
+  const scenarios = demoScenariosFor(region);
+  return { scenarios, activeScenarioId: "c", previewScenario: null, draftName: scenarios[2].name, draftChanges: { ...scenarios[2].changes } };
 }
 
 function downloadCsv(filename: string, rows: Array<Array<string | number>>) {
@@ -68,11 +76,16 @@ function downloadCsv(filename: string, rows: Array<Array<string | number>>) {
 
 export default function Sports24({ view }: { view: View }) {
   const router = useRouter();
-  const [draftName, setDraftName] = useState(demoScenarios[2].name);
-  const [draftChanges, setDraftChanges] = useState<Record<string, number>>({ ...demoScenarios[2].changes });
+  const [regionId, setRegionId] = useState(defaultRegion.id);
+  const activeRegion = useMemo(() => getRegion(regionId), [regionId]);
+  const baselineMetrics = useMemo(() => baselineFor(activeRegion), [activeRegion]);
+  const demoScenarios = useMemo(() => demoScenariosFor(activeRegion), [activeRegion]);
+
+  const [draftName, setDraftName] = useState(scenarioTemplates[2].name);
+  const [draftChanges, setDraftChanges] = useState<Record<string, number>>({ ...scenarioTemplates[2].changes });
   const [visibleSports, setVisibleSports] = useState(editableSports.slice(0, 5));
   const [selectedSports, setSelectedSports] = useState(["태권도", "수영", "배드민턴", "생활체조"]);
-  const [scenarios, setScenarios] = useState<Scenario[]>(demoScenarios);
+  const [scenarios, setScenarios] = useState<Scenario[]>(() => demoScenariosFor(defaultRegion));
   const [selectedScenarioIds, setSelectedScenarioIds] = useState(["a", "b", "c"]);
   const [activeScenarioId, setActiveScenarioId] = useState("c");
   const [previewScenario, setPreviewScenario] = useState<Scenario | null>(null);
@@ -80,47 +93,63 @@ export default function Sports24({ view }: { view: View }) {
   const [removedScenarios, setRemovedScenarios] = useState<Scenario[]>([]);
   const [loaded, setLoaded] = useState(false);
 
+  function applyState(state: DemoState) {
+    setScenarios(state.scenarios);
+    setActiveScenarioId(state.activeScenarioId);
+    setPreviewScenario(state.previewScenario);
+    setDraftName(state.draftName);
+    setDraftChanges(state.draftChanges);
+  }
+
   useEffect(() => {
+    let rid = defaultRegion.id;
     try {
-      const saved = sessionStorage.getItem("sports24-demo-state");
-      if (saved) {
-        const state = JSON.parse(saved) as {
-          scenarios?: Scenario[];
-          activeScenarioId?: string;
-          previewScenario?: Scenario | null;
-          draftName?: string;
-          draftChanges?: Record<string, number>;
-        };
-        if (Array.isArray(state.scenarios)) setScenarios(state.scenarios);
-        if (typeof state.activeScenarioId === "string") setActiveScenarioId(state.activeScenarioId);
-        if (state.previewScenario) setPreviewScenario(state.previewScenario);
-        if (typeof state.draftName === "string") setDraftName(state.draftName);
-        if (state.draftChanges && typeof state.draftChanges === "object") setDraftChanges(state.draftChanges);
-      }
+      const savedRegion = sessionStorage.getItem(REGION_KEY);
+      if (savedRegion && regions.some((item) => item.id === savedRegion)) rid = savedRegion;
+      const saved = sessionStorage.getItem(stateKey(rid));
+      applyState(saved ? { ...defaultsFor(getRegion(rid)), ...(JSON.parse(saved) as Partial<DemoState>) } : defaultsFor(getRegion(rid)));
     } catch {
+      applyState(defaultsFor(getRegion(rid)));
       setNotice("저장된 시나리오를 읽지 못했습니다. 기본 시연안을 표시합니다.");
     }
+    setRegionId(rid);
     setLoaded(true);
   }, []);
 
   useEffect(() => {
     if (!loaded) return;
     try {
-      sessionStorage.setItem("sports24-demo-state", JSON.stringify({ scenarios, activeScenarioId, previewScenario, draftName, draftChanges }));
+      sessionStorage.setItem(REGION_KEY, regionId);
+      sessionStorage.setItem(stateKey(regionId), JSON.stringify({ scenarios, activeScenarioId, previewScenario, draftName, draftChanges }));
     } catch {
       setNotice("브라우저 저장 공간을 사용할 수 없어 현재 화면에서만 변경사항이 유지됩니다.");
     }
-  }, [loaded, scenarios, activeScenarioId, previewScenario, draftName, draftChanges]);
+  }, [loaded, regionId, scenarios, activeScenarioId, previewScenario, draftName, draftChanges]);
+
+  function selectRegion(id: string) {
+    if (id === regionId) return;
+    setRegionId(id);
+    try {
+      sessionStorage.setItem(REGION_KEY, id);
+      const saved = sessionStorage.getItem(stateKey(id));
+      applyState(saved ? { ...defaultsFor(getRegion(id)), ...(JSON.parse(saved) as Partial<DemoState>) } : defaultsFor(getRegion(id)));
+    } catch {
+      applyState(defaultsFor(getRegion(id)));
+    }
+    setVisibleSports(editableSports.slice(0, 5));
+    setSelectedScenarioIds(["a", "b", "c"]);
+    setNotice(`${getRegion(id).label} 기준으로 전환했습니다.`);
+  }
 
   const activeScenario = previewScenario ?? scenarios.find((item) => item.id === activeScenarioId) ?? demoScenarios[2];
   const knownDraft = demoScenarios.find((item) => sameChanges(item.changes, draftChanges));
-  const previewMetrics = calculateSupplyMetrics(region.courses, draftChanges);
+  const previewMetrics = calculateSupplyMetrics(activeRegion.courses, draftChanges);
   const positiveUsed = usedCourses(draftChanges);
   const netChange = Object.values(draftChanges).reduce((sum, value) => sum + value, 0);
-  const afterTotal = region.courses.reduce((sum, course) => sum + course.count, 0) + netChange;
+  const afterTotal = activeRegion.courses.reduce((sum, course) => sum + course.count, 0) + netChange;
 
   function setChange(sport: string, nextValue: number) {
-    if (nextValue < -courseCount(sport)) return;
+    if (nextValue < -courseCount(activeRegion, sport)) return;
     const next = { ...draftChanges, [sport]: nextValue };
     if (usedCourses(next) > courseBudget) {
       setNotice(`추가 가능한 강좌는 ${courseBudget}개입니다. 다른 종목의 증감을 먼저 줄여 주세요.`);
@@ -137,8 +166,14 @@ export default function Sports24({ view }: { view: View }) {
       changes: { ...draftChanges },
       metrics: previewMetrics,
       date: currentDate(),
-      analysis: describeScenario(region.courses, draftChanges),
+      analysis: describeScenario(activeRegion.courses, draftChanges),
     };
+  }
+
+  function persist(next: Partial<DemoState>) {
+    try {
+      sessionStorage.setItem(stateKey(regionId), JSON.stringify({ scenarios, activeScenarioId, previewScenario, draftName, draftChanges, ...next }));
+    } catch { /* The inline status below explains unavailable storage. */ }
   }
 
   function saveScenario() {
@@ -148,27 +183,21 @@ export default function Sports24({ view }: { view: View }) {
     setScenarios(nextScenarios);
     setActiveScenarioId(saved.id);
     setPreviewScenario(null);
-    try {
-      sessionStorage.setItem("sports24-demo-state", JSON.stringify({ scenarios: nextScenarios, activeScenarioId: saved.id, previewScenario: null, draftName, draftChanges }));
-    } catch { /* The inline status below explains unavailable storage. */ }
+    persist({ scenarios: nextScenarios, activeScenarioId: saved.id, previewScenario: null });
     setNotice(`“${saved.name}” 시나리오를 저장했습니다.`);
   }
 
   function openResult() {
     const draft = makeDraftScenario();
     setPreviewScenario(draft);
-    try {
-      sessionStorage.setItem("sports24-demo-state", JSON.stringify({ scenarios, activeScenarioId, previewScenario: draft, draftName, draftChanges }));
-    } catch { /* The result falls back to the selected demo scenario. */ }
+    persist({ previewScenario: draft });
     router.push(paths.result);
   }
 
   function openSavedResult(scenario: Scenario) {
     setActiveScenarioId(scenario.id);
     setPreviewScenario(null);
-    try {
-      sessionStorage.setItem("sports24-demo-state", JSON.stringify({ scenarios, activeScenarioId: scenario.id, previewScenario: null, draftName, draftChanges }));
-    } catch { /* The result falls back to the selected demo scenario. */ }
+    persist({ activeScenarioId: scenario.id, previewScenario: null });
     router.push(paths.result);
   }
 
@@ -210,13 +239,13 @@ export default function Sports24({ view }: { view: View }) {
       notice={notice}
     >
 
-          {view === "overview" && <Overview onSimulation={() => router.push(paths.simulation)} />}
+          {view === "overview" && <Overview region={activeRegion} onSelectRegion={selectRegion} onSimulation={() => router.push(paths.simulation)} />}
           {view === "simulation" && <>
             <form className="filter-bar simulation-filter" noValidate onSubmit={(event: FormEvent) => { event.preventDefault(); saveScenario(); }}>
               <label htmlFor="scenario-name">시나리오명</label>
               <input id="scenario-name" value={draftName} onChange={(event) => setDraftName(event.target.value)} maxLength={60} />
               <label htmlFor="simulation-region">지역</label>
-              <select id="simulation-region" defaultValue="wonju"><option value="wonju">{region.label}</option></select>
+              <select id="simulation-region" value={regionId} onChange={(event) => selectRegion(event.target.value)}>{regions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
               <p className="budget-summary">추가 가능 강좌 <b>{courseBudget}개</b> / 사용 <b>{positiveUsed}개</b> / 잔여 <strong>{courseBudget - positiveUsed}개</strong></p>
             </form>
             <div id="course-adjustment">
@@ -225,7 +254,7 @@ export default function Sports24({ view }: { view: View }) {
                   <thead><tr><th scope="col">선택</th><th scope="col">종목</th><th scope="col">현재</th><th scope="col">증감</th><th scope="col">변경 후</th><th scope="col">변경 후 비중</th><th scope="col">비교지역 평균</th></tr></thead>
                   <tbody>
                     {visibleSports.map((sport) => {
-                      const course = region.courses.find((item) => item.sport === sport)!;
+                      const course = activeRegion.courses.find((item) => item.sport === sport)!;
                       const change = draftChanges[sport] ?? 0;
                       return <tr key={sport}>
                         <td><input type="checkbox" aria-label={`${sport} 선택`} checked={selectedSports.includes(sport)} onChange={(event) => setSelectedSports((current) => event.target.checked ? [...current, sport] : current.filter((item) => item !== sport))} /></td>
@@ -234,7 +263,7 @@ export default function Sports24({ view }: { view: View }) {
                         <td><strong>{course.count + change}</strong></td><td>{((course.count + change) / afterTotal * 100).toFixed(1)}%</td><td>{course.comparison.toFixed(1)}%</td>
                       </tr>;
                     })}
-                    <tr className="total-row"><td /><th scope="row">합계 (기타 {courseCount("기타")}개 포함)</th><td>{region.courses.reduce((sum, course) => sum + course.count, 0)}</td><td>{signed(netChange)}</td><td>{afterTotal}</td><td /><td /></tr>
+                    <tr className="total-row"><td /><th scope="row">합계 (기타 {courseCount(activeRegion, "기타")}개 포함)</th><td>{activeRegion.courses.reduce((sum, course) => sum + course.count, 0)}</td><td>{signed(netChange)}</td><td>{afterTotal}</td><td /><td /></tr>
                   </tbody>
                 </DataTable>
               </Section>
@@ -270,13 +299,13 @@ export default function Sports24({ view }: { view: View }) {
               <p className="table-note">시연 데이터의 종목 구성만 계산합니다. 유사도는 실제 수요 적합도를 뜻하지 않으며 연령별 적합도는 산출하지 않습니다.</p>
             </Section>
             <AiAnalysisPanel type="alternative" title="AI 대안 방향 제안" fallback="키가 없으면 아래 ‘AI 대안 생성’은 목업의 B안 예시를 불러옵니다." context={{
-              regionLabel: region.label,
-              similarRegions: region.comparisonLabel,
+              regionLabel: activeRegion.label,
+              similarRegions: activeRegion.comparisonLabel,
               courseBudget,
               usedCourses: positiveUsed,
               currentChanges: changesLabel(draftChanges),
               metrics: metricNames.map((name, index) => ({ name, before: baselineMetrics[index], after: previewMetrics[index] })),
-              courses: region.courses.map((course) => ({ sport: course.sport, current: course.count, peerAverage: course.comparison })),
+              courses: activeRegion.courses.map((course) => ({ sport: course.sport, current: course.count, peerAverage: course.comparison })),
             }} />
             <div className="page-actions split-actions">
               <button type="button" className="secondary-button" onClick={() => { setDraftName("새 시나리오"); setDraftChanges({}); setVisibleSports(editableSports.slice(0, 5)); setNotice("강좌 조정값을 초기화했습니다."); }}>초기화</button>
@@ -287,7 +316,7 @@ export default function Sports24({ view }: { view: View }) {
               </div>
             </div>
           </>}
-          {view === "result" && <Result scenario={activeScenario} onList={() => router.push(paths.compare)} onCompare={() => router.push(paths.compare)} />}
+          {view === "result" && <Result region={activeRegion} scenario={activeScenario} onList={() => router.push(paths.compare)} onCompare={() => router.push(paths.compare)} />}
           {view === "compare" && <>
             <div id="scenario-list">
               <Section title="저장된 시나리오 목록" unit={`총 ${scenarios.length}건`}>
@@ -309,16 +338,16 @@ export default function Sports24({ view }: { view: View }) {
                   <thead><tr><th scope="col">지표명</th><th scope="col">현재</th>{scenarios.filter((item) => selectedScenarioIds.includes(item.id)).map((scenario) => <th scope="col" key={scenario.id}>{scenario.name.split(" ")[0]}</th>)}</tr></thead>
                   <tbody>{metricNames.map((name, index) => {
                     const selected = scenarios.filter((item) => selectedScenarioIds.includes(item.id));
-                    const values = selected.map((item) => metricsFor(item)[index]).filter((value): value is number => typeof value === "number");
+                    const values = selected.map((item) => metricsFor(activeRegion, item)[index]).filter((value): value is number => typeof value === "number");
                     const best = values.length ? (index === 2 ? Math.min(...values) : Math.max(...values)) : null;
-                    return <tr key={name}><th scope="row">{name}</th><td className="baseline-cell">{baselineMetrics[index] ?? "산출 불가"}</td>{selected.map((scenario) => { const value = metricsFor(scenario)[index]; return <td key={scenario.id} className={value !== null && value === best ? "best-cell" : ""}>{value ?? "산출 불가"}</td>; })}</tr>;
+                    return <tr key={name}><th scope="row">{name}</th><td className="baseline-cell">{baselineMetrics[index] ?? "산출 불가"}</td>{selected.map((scenario) => { const value = metricsFor(activeRegion, scenario)[index]; return <td key={scenario.id} className={value !== null && value === best ? "best-cell" : ""}>{value ?? "산출 불가"}</td>; })}</tr>;
                   })}</tbody>
                 </DataTable>
               </Section>
               <Section title="분석의견">
                 <DataTable label="시나리오별 장단점 표" className="comparison-notes-table">
                   <thead><tr><th scope="col">구분</th><th scope="col">장점</th><th scope="col">단점</th></tr></thead>
-                  <tbody>{scenarios.filter((item) => selectedScenarioIds.includes(item.id)).map((scenario) => { const metrics = metricsFor(scenario); return <tr key={scenario.id}><th scope="row">{scenario.name.split(" ")[0]}</th><td className="text-left">{`구성 유사도 ${metrics[0]}점, 다양성 ${metrics[1]}점`}</td><td className="text-left">{`편중도 ${metrics[2]}점. 연령별 적합도는 산출 불가`}</td></tr>; })}</tbody>
+                  <tbody>{scenarios.filter((item) => selectedScenarioIds.includes(item.id)).map((scenario) => { const metrics = metricsFor(activeRegion, scenario); return <tr key={scenario.id}><th scope="row">{scenario.name.split(" ")[0]}</th><td className="text-left">{`구성 유사도 ${metrics[0]}점, 다양성 ${metrics[1]}점`}</td><td className="text-left">{`편중도 ${metrics[2]}점. 연령별 적합도는 산출 불가`}</td></tr>; })}</tbody>
                 </DataTable>
               </Section>
             </div>
@@ -327,7 +356,7 @@ export default function Sports24({ view }: { view: View }) {
               <div>
                 <button type="button" className="secondary-button" onClick={() => downloadCsv("시나리오-지표비교.csv", [
                   ["지표명", "현재", ...scenarios.filter((item) => selectedScenarioIds.includes(item.id)).map((item) => item.name)],
-                  ...metricNames.map((name, index) => [name, baselineMetrics[index] ?? "산출 불가", ...scenarios.filter((item) => selectedScenarioIds.includes(item.id)).map((item) => metricsFor(item)[index] ?? "산출 불가")]),
+                  ...metricNames.map((name, index) => [name, baselineMetrics[index] ?? "산출 불가", ...scenarios.filter((item) => selectedScenarioIds.includes(item.id)).map((item) => metricsFor(activeRegion, item)[index] ?? "산출 불가")]),
                 ])}>CSV 다운로드</button>
                 <button type="button" className="secondary-button" onClick={() => window.print()}>인쇄</button>
                 <button type="button" className="primary-button" onClick={() => { const scenario = scenarios.find((item) => selectedScenarioIds.includes(item.id)); if (scenario) router.push(`/reports/${scenario.id}`); else setNotice("보고서로 확인할 시나리오를 선택해 주세요."); }}>보고서 작성</button>
@@ -338,13 +367,12 @@ export default function Sports24({ view }: { view: View }) {
   );
 }
 
-function Overview({ onSimulation }: { onSimulation: () => void }) {
-  const [draftRegion, setDraftRegion] = useState(region.id);
-  const [selectedRegion, setSelectedRegion] = useState(region.id);
-  const currentRegion = useMemo(() => regions.find((item) => item.id === selectedRegion) ?? region, [selectedRegion]);
+function Overview({ region: currentRegion, onSelectRegion, onSimulation }: { region: Region; onSelectRegion: (id: string) => void; onSimulation: () => void }) {
+  const [draftRegion, setDraftRegion] = useState(currentRegion.id);
+  useEffect(() => { setDraftRegion(currentRegion.id); }, [currentRegion.id]);
   const totalCourses = currentRegion.courses.reduce((sum, course) => sum + course.count, 0);
   return <>
-    <form className="filter-bar" noValidate onSubmit={(event) => { event.preventDefault(); setSelectedRegion(draftRegion); }}>
+    <form className="filter-bar" noValidate onSubmit={(event) => { event.preventDefault(); onSelectRegion(draftRegion); }}>
       <label htmlFor="region">지역</label><select id="region" value={draftRegion} onChange={(event) => setDraftRegion(event.target.value)}>{regions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
       <label htmlFor="comparison-region">비교지역</label><select id="comparison-region" defaultValue="similar"><option value="similar">{currentRegion.comparisonLabel}</option></select>
       <button className="primary-button" type="submit">조회</button>
@@ -378,7 +406,7 @@ type FacilitySearch = { cpb_nm: string; ftype_nm: string; faci_nm: string };
 type FacilityResponse = { pageNo: number; numOfRows: number; totalCount: number; items: LiveFacility[]; error?: string };
 
 function LiveFacilityLookup() {
-  const [search, setSearch] = useState<FacilitySearch>({ cpb_nm: region.shortName, ftype_nm: "", faci_nm: "" });
+  const [search, setSearch] = useState<FacilitySearch>({ cpb_nm: defaultRegion.shortName, ftype_nm: "", faci_nm: "" });
   const [committed, setCommitted] = useState<FacilitySearch | null>(null);
   const [result, setResult] = useState<FacilityResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -507,8 +535,9 @@ function LiveCourseLookup() {
   </details>;
 }
 
-function Result({ scenario, onList, onCompare }: { scenario: Scenario; onList: () => void; onCompare: () => void }) {
-  const scenarioMetrics = metricsFor(scenario);
+function Result({ region, scenario, onList, onCompare }: { region: Region; scenario: Scenario; onList: () => void; onCompare: () => void }) {
+  const baselineMetrics = baselineFor(region);
+  const scenarioMetrics = metricsFor(region, scenario);
   const net = Object.values(scenario.changes).reduce((sum, value) => sum + value, 0);
   const total = region.courses.reduce((sum, course) => sum + course.count, 0) + net;
   const visibleCourses = ["태권도", "수영", "배드민턴", "생활체조", "요가·필라테스"].map((sport) => region.courses.find((course) => course.sport === sport)!);
@@ -522,6 +551,7 @@ function Result({ scenario, onList, onCompare }: { scenario: Scenario; onList: (
     <AiAnalysisPanel type="review" title="AI 정책 검토" fallback="AI 검토가 없어도 위 자동분석 결과는 그대로 사용할 수 있습니다." context={{
       regionLabel: region.label,
       similarRegions: region.comparisonLabel,
+      asOfMonth,
       scenario: scenario.name,
       changes: changesLabel(scenario.changes),
       courseBudget,

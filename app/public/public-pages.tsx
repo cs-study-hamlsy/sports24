@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { getRegion, region, regions } from "../../lib/regions";
-import { changesLabel, demoScenarios, metricNames } from "../../data/scenarios";
+import { changesLabel, demoScenariosFor, metricNames } from "../../data/scenarios";
 import { DataTable, Section, BrandLockup } from "../ui";
 
 type PublicView = "home" | "region" | "policies" | "policy";
+// 시민 공개 정책결과는 대표 공개지역(기본 지역)의 예시 정책안을 사용한다.
+const demoScenarios = demoScenariosFor(region);
 
 // 공개 화면 메타데이터. 실측 정제 데이터가 연결되면 기준월·출처·공개상태를 실제 값으로 교체한다.
 const publicMeta = {
