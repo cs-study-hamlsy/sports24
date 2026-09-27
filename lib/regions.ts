@@ -9,6 +9,7 @@ type RawRegion = {
   label: string;
   shortName: string;
   comparisonLabel: string;
+  asOfMonth?: string;
   totalPopulation: number;
   facilities: number;
   population: { region: number[]; comparison: number[] };
@@ -17,6 +18,9 @@ type RawRegion = {
 };
 
 const base = (regionsData as RawRegion[])[0];
+
+/** 인구·시설 실측 데이터의 기준월(YYYY-MM). 강좌 데이터는 시연값이다. */
+export const asOfMonth = base.asOfMonth ?? "";
 
 /** 후보 지역이 기준지역과 얼마나 다른지를 0(동일)에 가까울수록 유사하게 계산한다. */
 export type PeerDistance = {

@@ -3,25 +3,66 @@
     "id": "wonju",
     "label": "강원 원주시",
     "shortName": "원주시",
-    "comparisonLabel": "춘천시, 충주시, 강릉시",
-    "totalPopulation": 360000,
-    "facilities": 27,
+    "comparisonLabel": "춘천시, 강릉시, 충주시",
+    "asOfMonth": "2026-08",
+    "totalPopulation": 365379,
+    "facilities": 926,
     "population": {
-      "region": [14, 18, 42, 26],
-      "comparison": [15, 19, 44, 22]
+      "region": [
+        15.8,
+        23.4,
+        39.6,
+        21.2
+      ],
+      "comparison": [
+        15.8,
+        23.4,
+        39.6,
+        21.2
+      ]
     },
     "courses": [
-      { "sport": "태권도", "count": 32, "share": 38.1, "comparison": 24.0 },
-      { "sport": "배드민턴", "count": 7, "share": 8.3, "comparison": 11.0 },
-      { "sport": "수영", "count": 5, "share": 6.0, "comparison": 13.0 },
-      { "sport": "생활체조", "count": 4, "share": 4.8, "comparison": 9.0 },
-      { "sport": "요가·필라테스", "count": 6, "share": 7.1, "comparison": 8.0 },
-      { "sport": "기타", "count": 30, "share": 35.7, "comparison": 35.0 }
+      {
+        "sport": "태권도",
+        "count": 32,
+        "share": 38.1,
+        "comparison": 38.1
+      },
+      {
+        "sport": "배드민턴",
+        "count": 7,
+        "share": 8.3,
+        "comparison": 8.3
+      },
+      {
+        "sport": "수영",
+        "count": 5,
+        "share": 6,
+        "comparison": 6
+      },
+      {
+        "sport": "생활체조",
+        "count": 4,
+        "share": 4.8,
+        "comparison": 4.8
+      },
+      {
+        "sport": "요가·필라테스",
+        "count": 6,
+        "share": 7.1,
+        "comparison": 7.1
+      },
+      {
+        "sport": "기타",
+        "count": 30,
+        "share": 35.7,
+        "comparison": 35.7
+      }
     ],
     "analysis": [
       "태권도 강좌가 전체의 38.1%로 유사지역 평균(24.2%) 대비 13.9%p 높음",
       "수영 강좌 비중 6.0%로 유사지역 평균(13.5%)의 약 1/2 수준",
-      "고령인구 비율(26%)이 유사지역보다 높으나 생활체조 강좌는 4개에 불과함"
+      "고령인구 비율이 유사지역보다 높으나 생활체조 강좌는 4개에 불과함"
     ]
   }
 ]
