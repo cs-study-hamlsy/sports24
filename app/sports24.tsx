@@ -269,10 +269,19 @@ export default function Sports24({ view }: { view: View }) {
               </DataTable>
               <p className="table-note">시연 데이터의 종목 구성만 계산합니다. 유사도는 실제 수요 적합도를 뜻하지 않으며 연령별 적합도는 산출하지 않습니다.</p>
             </Section>
+            <AiAnalysisPanel type="alternative" title="AI 대안 방향 제안" fallback="키가 없으면 아래 ‘AI 대안 생성’은 목업의 B안 예시를 불러옵니다." context={{
+              regionLabel: region.label,
+              similarRegions: region.comparisonLabel,
+              courseBudget,
+              usedCourses: positiveUsed,
+              currentChanges: changesLabel(draftChanges),
+              metrics: metricNames.map((name, index) => ({ name, before: baselineMetrics[index], after: previewMetrics[index] })),
+              courses: region.courses.map((course) => ({ sport: course.sport, current: course.count, peerAverage: course.comparison })),
+            }} />
             <div className="page-actions split-actions">
               <button type="button" className="secondary-button" onClick={() => { setDraftName("새 시나리오"); setDraftChanges({}); setVisibleSports(editableSports.slice(0, 5)); setNotice("강좌 조정값을 초기화했습니다."); }}>초기화</button>
               <div>
-                <button type="button" className="secondary-button" onClick={() => { setDraftName(demoScenarios[1].name); setDraftChanges({ ...demoScenarios[1].changes }); setNotice("목업의 B안 예시를 불러왔습니다. 실제 AI 대안 생성은 다음 개발 단계입니다."); }}>AI 대안 생성</button>
+                <button type="button" className="secondary-button" onClick={() => { setDraftName(demoScenarios[1].name); setDraftChanges({ ...demoScenarios[1].changes }); setNotice("계산 엔진 기반 대안(B안)을 불러왔습니다. 위 ‘AI 대안 방향 제안’에서 근거 설명을 생성할 수 있습니다."); }}>AI 대안 생성</button>
                 <button type="button" className="secondary-button" onClick={saveScenario}>시나리오 저장</button>
                 <button type="button" className="primary-button" onClick={openResult}>결과조회</button>
               </div>
@@ -346,6 +355,13 @@ function Overview({ onSimulation }: { onSimulation: () => void }) {
       <div id="courses"><Section title="종목별 강좌 현황" unit="(단위: 개, %)"><DataTable label="종목별 강좌 현황 표"><thead><tr><th scope="col">종목</th><th scope="col">강좌수</th><th scope="col">비중</th><th scope="col">비교지역 평균</th><th scope="col">차이</th></tr></thead><tbody>{currentRegion.courses.map((course) => { const difference = course.share - course.comparison; return <tr key={course.sport}><th scope="row">{course.sport}</th><td>{course.count}</td><td>{course.share.toFixed(1)}</td><td>{course.comparison.toFixed(1)}</td><td className={Math.abs(difference) >= 7 ? "danger" : ""}>{difference > 0 ? "+" : ""}{difference.toFixed(1)}</td></tr>; })}<tr className="total-row"><th scope="row">합계</th><td>{totalCourses}</td><td>100.0</td><td>100.0</td><td /></tr></tbody></DataTable></Section></div>
       <Section title="분석의견"><div className="analysis-box"><h3>현황 분석의견 <span>(시연 데이터 기준)</span></h3><ol>{currentRegion.analysis.slice(0, 2).map((item) => <li key={item}>{item}</li>)}<li>연령별 강좌 적합도는 수강 대상·실제 수요 자료가 없어 판단하지 않습니다.</li></ol></div></Section>
     </div>
+    <AiAnalysisPanel type="gap" title="AI Gap 분석" fallback="AI 분석 없이도 위 지표와 분석의견은 그대로 확인할 수 있습니다." context={{
+      regionLabel: currentRegion.label,
+      similarRegions: currentRegion.comparisonLabel,
+      metrics: metricNames.map((name, index) => ({ name, value: calculateSupplyMetrics(currentRegion.courses)[index] })),
+      courses: currentRegion.courses.map((course) => ({ sport: course.sport, count: course.count, share: course.share, peerAverage: course.comparison })),
+      population: { region: currentRegion.population.region, peerAverage: currentRegion.population.comparison, labels: ["청소년", "청년", "중장년", "고령"] },
+    }} />
     <div className="page-actions"><button type="button" className="secondary-button" onClick={() => downloadCsv(`${currentRegion.shortName}-체육공급현황.csv`, [["종목", "강좌수", "비중", "비교지역 평균"], ...currentRegion.courses.map((course) => [course.sport, course.count, course.share, course.comparison])])}>CSV 다운로드</button><button type="button" className="secondary-button" onClick={() => window.print()}>인쇄</button><button type="button" className="primary-button" onClick={onSimulation}>정책시뮬레이션</button></div>
     <LiveCourseLookup />
   </>;
@@ -429,6 +445,55 @@ function Result({ scenario, onList, onCompare }: { scenario: Scenario; onList: (
       <Section title="종목 구성 변화" unit="(단위: %)"><DataTable label="종목 구성 변화 표" className="result-course-table"><thead><tr><th scope="col">종목</th><th scope="col">현재 비중</th><th scope="col">변경 후</th><th scope="col">비교지역</th><th scope="col">비교</th></tr></thead><tbody>{visibleCourses.map((course: Course) => { const after = ((course.count + (scenario.changes[course.sport] ?? 0)) / total) * 100; const label = after < course.comparison - 3 ? "여전히 낮음" : after > course.comparison + 3 ? "여전히 높음" : Math.abs(after - course.comparison) <= 0.5 ? "유사 수준" : "-"; return <tr key={course.sport}><th scope="row">{course.sport}</th><td>{course.share.toFixed(1)}</td><td><strong>{after.toFixed(1)}</strong></td><td>{course.comparison.toFixed(1)}</td><td className={label.startsWith("여전히") ? "danger" : ""}>{label}</td></tr>; })}</tbody></DataTable></Section>
     </div>
     <div id="analysis"><Section title="분석의견"><div className="analysis-box result-analysis"><h3>시나리오 분석의견 <span>(시연 데이터 기반 자동분석)</span></h3><ol>{describeScenario(region.courses, scenario.changes).map((item) => <li key={item}>{item}</li>)}</ol></div></Section></div>
-    <div className="page-actions split-actions"><button type="button" className="secondary-button" onClick={onList}>목록</button><div><button type="button" className="secondary-button" disabled title="한글 파일 생성은 다음 개발 단계입니다">한글(HWP) 저장</button><button type="button" className="secondary-button" onClick={() => window.print()}>PDF 저장</button><button type="button" className="secondary-button" onClick={() => window.print()}>인쇄</button><button type="button" className="primary-button" onClick={onCompare}>정책안비교</button></div></div>
+    <AiAnalysisPanel type="review" title="AI 정책 검토" fallback="AI 검토가 없어도 위 자동분석 결과는 그대로 사용할 수 있습니다." context={{
+      regionLabel: region.label,
+      similarRegions: region.comparisonLabel,
+      scenario: scenario.name,
+      changes: changesLabel(scenario.changes),
+      courseBudget,
+      usedCourses: usedCourses(scenario.changes),
+      metrics: metricNames.map((name, index) => ({ name, before: baselineMetrics[index], after: scenarioMetrics[index] })),
+    }} />
+    <div className="page-actions split-actions"><button type="button" className="secondary-button" onClick={onList}>목록</button><div><button type="button" className="secondary-button" onClick={() => window.print()}>PDF 저장</button><button type="button" className="secondary-button" onClick={() => window.print()}>인쇄</button><button type="button" className="primary-button" onClick={onCompare}>정책안비교</button></div></div>
   </>;
+}
+
+function AiAnalysisPanel({ type, title, context, fallback }: { type: string; title: string; context: unknown; fallback?: string }) {
+  const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [text, setText] = useState("");
+  const [message, setMessage] = useState("");
+
+  async function run() {
+    setStatus("loading");
+    setMessage("");
+    try {
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, context }),
+      });
+      const data = await response.json() as { text?: string; error?: string };
+      if (!response.ok) {
+        setStatus("error");
+        setMessage(data.error || "AI 분석을 불러오지 못했습니다.");
+        return;
+      }
+      setText(data.text ?? "");
+      setStatus("done");
+    } catch {
+      setStatus("error");
+      setMessage("AI 분석 연결에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    }
+  }
+
+  return <Section title={title}>
+    <div className="ai-panel">
+      <div className="ai-panel-head">
+        <p>계산 엔진이 산출한 값만 전달해 AI가 해석·검토 의견을 생성합니다. 수치는 AI가 만들지 않습니다.</p>
+        <button type="button" className="secondary-button" onClick={run} disabled={status === "loading"}>{status === "loading" ? "생성 중…" : status === "done" ? "다시 생성" : "AI 분석 생성"}</button>
+      </div>
+      {status === "done" && <div className="ai-panel-body" aria-live="polite">{text.split("\n").map((line) => line.trim()).filter(Boolean).map((line, index) => <p key={index}>{line}</p>)}</div>}
+      {status === "error" && <p className="inline-notice neutral-notice" role="status">{message}{fallback ? ` ${fallback}` : ""}</p>}
+    </div>
+  </Section>;
 }
