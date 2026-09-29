@@ -378,6 +378,24 @@ tbody th { text-align: left; font-weight: 400; }
 .compare-metrics-table td { width: 13%; }
 .compare-metrics-table .baseline-cell { color: #777; }
 .best-cell { color: #2055a0; background: #eaf1fa; font-weight: 700; }
+.course-share-chart { margin: 0 0 18px; padding: 16px 18px 12px; border: 1px solid var(--color-border); background: #fff; }
+.course-share-chart figcaption { margin-bottom: 10px; font-size: calc(16px * var(--font-scale, 1)); font-weight: 700; }
+.course-share-chart figcaption small { margin-left: 8px; color: var(--color-text-muted); font-size: calc(12px * var(--font-scale, 1)); font-weight: 400; }
+.course-chart-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-bottom: 14px; font-size: calc(12px * var(--font-scale, 1)); }
+.course-chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.chart-swatch { display: inline-block; width: 15px; height: 9px; }
+.chart-swatch.current, .course-chart-bar.current { background: #1f467e; }
+.chart-swatch.after, .course-chart-bar.after { background: #3f6db3; }
+.chart-swatch.peer, .course-chart-bar.peer { background: #a8b9cc; }
+.course-chart-rows { display: grid; gap: 12px; }
+.course-chart-row { display: grid; grid-template-columns: minmax(84px, 118px) minmax(0, 1fr); align-items: center; gap: 10px; }
+.course-chart-row > strong { font-size: calc(12px * var(--font-scale, 1)); line-height: 1.3; }
+.course-chart-series { display: grid; gap: 3px; }
+.course-chart-line { display: grid; grid-template-columns: minmax(0, 1fr) 48px; gap: 6px; align-items: center; }
+.course-chart-track { height: 9px; background: #f0f3f6; }
+.course-chart-bar { display: block; height: 100%; min-width: 2px; }
+.course-chart-value { text-align: right; font-size: calc(11px * var(--font-scale, 1)); font-variant-numeric: tabular-nums; }
+.course-chart-scale { margin: 12px 0 0; color: var(--color-text-muted); font-size: calc(11px * var(--font-scale, 1)); text-align: right; }
 .ai-panel { border: 1px solid #d6dde8; border-radius: 6px; background: #f7f9fc; padding: 16px; }
 .ai-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .ai-panel-head p { margin: 0; color: #556; font-size: calc(13px * var(--font-scale, 1)); }

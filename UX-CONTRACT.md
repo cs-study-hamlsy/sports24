@@ -50,3 +50,5 @@
 | Status feedback | `AppShell`의 인라인 알림과 각 폼의 `role="status"` 영역 | 본 문서의 상태와 피드백 규칙 | 안내, 저장 완료, 데모 데이터 고지 | 동작 뒤 같은 문맥에서 메시지 노출 확인 |
 | Table scrolling | `app/globals.css`의 `.table-scroll` | `DESIGN.md` | 고정 헤더, 좁은 화면 가로 스크롤 | 헤더 정렬과 스크롤 영역 확인 |
 | Report actions | `app/extended-pages.tsx`의 `PolicyReport` | 본 문서의 보고서와 공개 화면 규칙 | 인쇄/PDF, 시민 공개 링크 | 인쇄 미리보기와 공개 화면 연결 확인 |
+| Course share chart | `app/course-share-chart.tsx` | `lib/regions.ts`의 종목 비중과 `lib/simulation.ts`의 조정값 | 현황 2계열, 결과 3계열 | 선택 지역·정책안 변경 시 막대와 아래 표의 값 일치 확인 |
+| Scenario report link | 비교·이력 표의 지역 포함 URL | 정책안 ID와 지역 ID | 예시 및 세션 저장 정책안 | 각 행이 해당 정책안·지역 보고서를 열고 없는 ID는 오류 상태 표시 |

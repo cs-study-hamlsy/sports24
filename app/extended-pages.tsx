@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { asOfMonth, getRegion, region, regions, PEER_COUNT, type Region } from "../lib/regions";
-import { baselineFor, changesLabel, courseBudget, demoScenariosFor, metricNames, Scenario, usedCourses } from "../data/scenarios";
+import { baselineFor, changesLabel, courseBudget, demoScenariosFor, metricNames, normalizeScenario, Scenario, usedCourses } from "../data/scenarios";
+import { calculateSupplyMetrics, describeScenario } from "../lib/simulation";
 import { AppShell, DataTable, Section, SideItem } from "./ui";
 
 type ExtendedView = "regionCompare" | "facilities" | "history" | "report";
@@ -49,9 +50,9 @@ function config(view: ExtendedView): { activeNav: "overview" | "simulation" | "c
   };
 }
 
-export default function ExtendedPage({ view, scenarioId = "c" }: { view: ExtendedView; scenarioId?: string }) {
+export default function ExtendedPage({ view, scenarioId = "c", reportRegionId }: { view: ExtendedView; scenarioId?: string; reportRegionId?: string }) {
   const shell = config(view);
-  return <AppShell {...shell}>{view === "regionCompare" ? <RegionCompare /> : view === "facilities" ? <FacilitySimulation /> : view === "history" ? <ComparisonHistory /> : <PolicyReport scenarioId={scenarioId} />}</AppShell>;
+  return <AppShell {...shell}>{view === "regionCompare" ? <RegionCompare /> : view === "facilities" ? <FacilitySimulation /> : view === "history" ? <ComparisonHistory /> : <PolicyReport scenarioId={scenarioId} reportRegionId={reportRegionId} />}</AppShell>;
 }
 
 function RegionCompare() {
@@ -88,7 +89,31 @@ function FacilitySimulation() {
   const facilities = target.facilityTypes.map((facility) => ({ ...facility, unitCost: facilityUnitCost[facility.type] ?? 5 }));
   const totalChange = Object.values(changes).reduce((sum, value) => sum + value, 0);
   const estimatedCost = facilities.reduce((sum, facility) => sum + Math.max(0, changes[facility.type] ?? 0) * facility.unitCost, 0);
-  const update = (type: string, value: number) => setChanges((current) => ({ ...current, [type]: Math.max(-1, Math.min(2, value)) }));
+  useEffect(() => {
+    let restored: FacilityChange = {};
+    try {
+      const saved = sessionStorage.getItem(`sports24-facility-state-${target.id}`);
+      if (saved) {
+        const parsed = JSON.parse(saved) as { changes?: FacilityChange };
+        for (const facility of target.facilityTypes) {
+          const value = parsed.changes?.[facility.type];
+          if (Number.isInteger(value) && value !== undefined && value >= -Math.min(1, facility.count) && value <= 2) restored[facility.type] = value;
+        }
+      }
+    } catch { /* 저장값이 손상되었으면 기본 조정값을 사용한다. */ }
+    setChanges(restored);
+    setNotice("");
+  }, [target]);
+  const update = (type: string, value: number) => setChanges((current) => {
+    const count = facilities.find((facility) => facility.type === type)?.count ?? 0;
+    return { ...current, [type]: Math.max(-Math.min(1, count), Math.min(2, value)) };
+  });
+  const save = () => {
+    try {
+      sessionStorage.setItem(`sports24-facility-state-${target.id}`, JSON.stringify({ changes }));
+      setNotice(`${target.shortName} 시설 조정 시연안을 이 브라우저 세션에 저장했습니다.`);
+    } catch { setNotice("브라우저 저장소에 접근할 수 없어 저장하지 못했습니다."); }
+  };
   return <>
     <div className="filter-bar compact-filter"><span className="filter-label">대상지역</span><strong>{target.label}</strong><span className="filter-label">정상운영 등록 시설</span><strong>{target.facilities.toLocaleString("ko-KR")}개소</strong></div>
     <p className="inline-notice neutral-notice">현재 시설 수는 전국체육시설 정보 API 실측값(정상운영, 기준 {asOfMonth})입니다. 증감·비용단위는 시연용 계획 입력이며 강좌 지표에는 합산하지 않습니다.</p>
@@ -98,7 +123,7 @@ function FacilitySimulation() {
     </Section>
     <div className="summary-strip"><div><span>시설 순증감</span><strong>{totalChange > 0 ? `+${totalChange}` : totalChange}</strong></div><div><span>시연 비용단위</span><strong>{estimatedCost}</strong></div><div><span>강좌 지표 반영</span><strong>미적용</strong></div></div>
     <Section title="검토사항"><div className="analysis-box"><h3>시설 조정 검토</h3><ol><li>시설 수만으로 정책 효과를 산정하지 않습니다.</li><li>입지, 운영시간, 수용인원, 접근성 자료가 확보되면 별도 계산 엔진에 연결합니다.</li><li>강좌 조정 시나리오와 합산할 때는 중복 효과를 방지하는 기준이 필요합니다.</li></ol></div></Section>
-    <div className="page-actions split-actions"><button className="secondary-button" type="button" onClick={() => { setChanges({}); setNotice("시설 조정값을 초기화했습니다."); }}>초기화</button><div><button className="secondary-button" type="button" onClick={() => setNotice("시설 조정 시연안을 현재 세션에 저장했습니다.")}>시연안 저장</button><Link className="primary-button" href="/simulation">강좌 조정으로 이동</Link></div></div>
+    <div className="page-actions split-actions"><button className="secondary-button" type="button" onClick={() => { setChanges({}); setNotice("시설 조정값을 초기화했습니다. 저장된 시연안은 다시 저장할 때 변경됩니다."); }}>초기화</button><div><button className="secondary-button" type="button" onClick={save}>시연안 저장</button><Link className="primary-button" href="/simulation">강좌 조정으로 이동</Link></div></div>
   </>;
 }
 
@@ -106,48 +131,56 @@ function ComparisonHistory() {
   const target = useSelectedRegion();
   const [scenarios, setScenarios] = useState<Scenario[]>(() => demoScenariosFor(region));
   useEffect(() => {
-    let list: Scenario[] = [];
+    let list: Scenario[] | null = null;
     try {
       const saved = sessionStorage.getItem(`sports24-state-${target.id}`);
       if (saved) { const parsed = JSON.parse(saved) as { scenarios?: Scenario[] }; if (Array.isArray(parsed.scenarios)) list = parsed.scenarios; }
     } catch { /* 예시 시나리오로 대체한다. */ }
-    setScenarios(list.length ? list : demoScenariosFor(target));
+    setScenarios((list ?? demoScenariosFor(target)).map(normalizeScenario));
   }, [target]);
   return <>
     <div className="filter-bar compact-filter"><span className="filter-label">대상지역</span><strong>{target.label}</strong></div>
     <p className="inline-notice neutral-notice">이력은 현재 브라우저에 저장된 {target.shortName} 시나리오입니다. 서버 저장과 담당자별 영구 이력은 아직 연결하지 않았습니다.</p>
-    <Section title="최근 비교 이력" unit={`총 ${scenarios.length}건`}><DataTable label="최근 시나리오 비교 이력"><thead><tr><th scope="col">등록일</th><th scope="col">대상지역</th><th scope="col">정책안</th><th scope="col">조정내용</th><th scope="col">담당부서</th><th scope="col">결과</th></tr></thead><tbody>{scenarios.length ? scenarios.map((scenario) => <tr key={scenario.id}><td>{scenario.date}</td><td>{target.shortName}</td><th scope="row">{scenario.name}</th><td className="text-left">{changesLabel(scenario.changes)}</td><td>체육진흥과</td><td><Link className="table-link" href={`/reports/${scenario.id}`}>보고서 보기</Link></td></tr>) : <tr><td colSpan={6} className="empty-row">저장된 시나리오가 없습니다. <Link href="/simulation">강좌 조정으로 이동</Link></td></tr>}</tbody></DataTable></Section>
+    <Section title="최근 비교 이력" unit={`총 ${scenarios.length}건`}><DataTable label="최근 시나리오 비교 이력"><thead><tr><th scope="col">등록일</th><th scope="col">대상지역</th><th scope="col">정책안</th><th scope="col">조정내용</th><th scope="col">담당부서</th><th scope="col">결과</th></tr></thead><tbody>{scenarios.length ? scenarios.map((scenario) => <tr key={scenario.id}><td>{scenario.date}</td><td>{target.shortName}</td><th scope="row">{scenario.name}</th><td className="text-left">{changesLabel(scenario.changes)}</td><td>체육진흥과</td><td><Link className="table-link" href={`/reports/${scenario.id}?region=${target.id}`}>보고서 보기</Link></td></tr>) : <tr><td colSpan={6} className="empty-row">저장된 시나리오가 없습니다. <Link href="/simulation">강좌 조정으로 이동</Link></td></tr>}</tbody></DataTable></Section>
     <Section title="저장 범위"><div className="analysis-box"><h3>시연 이력 안내</h3><ol><li>현재는 브라우저 세션에 저장된 {target.shortName} 시나리오만 표시합니다.</li><li>실제 서비스에서는 비교 대상, 지표 버전, 데이터 기준월을 함께 저장해야 합니다.</li><li>정책안 원본이 변경되어도 기존 보고서의 계산 기준은 보존해야 합니다.</li></ol></div></Section>
     <div className="page-actions"><Link className="primary-button" href="/compare">새 비교 시작</Link></div>
   </>;
 }
 
 // 보고서는 결과·비교 화면에서 선택한 지역과 시나리오(sessionStorage)를 그대로 이어받는다.
-function PolicyReport({ scenarioId }: { scenarioId: string }) {
+function PolicyReport({ scenarioId, reportRegionId }: { scenarioId: string; reportRegionId?: string }) {
   const [state, setState] = useState<{ target: Region; scenario: Scenario } | null>(null);
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     let rid = region.id;
-    let scenarios: Scenario[] = [];
+    let scenarios: Scenario[] | null = null;
     try {
       const savedRegion = sessionStorage.getItem("sports24-region");
       if (savedRegion && regions.some((item) => item.id === savedRegion)) rid = savedRegion;
+    } catch { /* 기본 지역을 사용한다. */ }
+    if (reportRegionId && regions.some((item) => item.id === reportRegionId)) rid = reportRegionId;
+    try {
       const saved = sessionStorage.getItem(`sports24-state-${rid}`);
       if (saved) { const parsed = JSON.parse(saved) as { scenarios?: Scenario[] }; if (Array.isArray(parsed.scenarios)) scenarios = parsed.scenarios; }
-    } catch { /* 기본 지역·예시 시나리오로 대체한다. */ }
+    } catch { /* 예시 시나리오로 대체한다. */ }
     const target = getRegion(rid);
-    if (!scenarios.length) scenarios = demoScenariosFor(target);
-    const scenario = scenarios.find((item) => item.id === scenarioId) ?? scenarios.find((item) => item.id === "c") ?? scenarios[0];
-    setState({ target, scenario });
-  }, [scenarioId]);
+    const scenario = (scenarios ?? demoScenariosFor(target)).map(normalizeScenario).find((item) => item.id === scenarioId)
+      ?? (scenarioId.startsWith("saved-") ? undefined : demoScenariosFor(target).find((item) => item.id === scenarioId));
+    setState(scenario ? { target, scenario } : null);
+    setLoaded(true);
+  }, [scenarioId, reportRegionId]);
 
-  if (!state) return <article className="report-sheet"><p>보고서를 불러오는 중입니다…</p></article>;
+  if (!loaded) return <article className="report-sheet"><p>보고서를 불러오는 중입니다…</p></article>;
+  if (!state) return <article className="report-sheet"><div className="analysis-box"><h3>보고서를 찾을 수 없습니다</h3><p>이 브라우저 세션에 해당 정책안이 없습니다. 지역이나 저장된 시나리오를 확인해 주세요.</p><Link className="secondary-button" href="/compare">정책안 비교로 이동</Link></div></article>;
   const { target, scenario } = state;
   const baselineMetrics = baselineFor(target);
+  const metrics = calculateSupplyMetrics(target.courses, scenario.changes);
+  const analysis = describeScenario(target.courses, scenario.changes);
   return <article className="report-sheet">
     <div className="report-meta"><div><span>보고서 번호</span><strong>SPORTS24-{scenario.date.replaceAll(".", "")}-{scenario.id.toUpperCase()}</strong></div><div><span>대상지역</span><strong>{target.label}</strong></div><div><span>작성기준</span><strong>인구·시설 {asOfMonth} / 강좌 시연값</strong></div></div>
     <Section title="정책안 요약"><DataTable label="정책안 요약"><tbody><tr><th scope="row">시나리오명</th><td>{scenario.name}</td><th scope="row">강좌 사용</th><td>{usedCourses(scenario.changes)} / {courseBudget}개</td></tr><tr><th scope="row">조정내용</th><td colSpan={3}>{changesLabel(scenario.changes)}</td></tr></tbody></DataTable></Section>
-    <Section title="핵심 지표"><DataTable label="정책 보고서 핵심 지표"><thead><tr><th scope="col">지표</th><th scope="col">현재</th><th scope="col">정책안</th><th scope="col">변화</th></tr></thead><tbody>{metricNames.map((name, index) => { const before = baselineMetrics[index]; const after = scenario.metrics[index]; const delta = before === null || after === null ? null : after - before; return <tr key={name}><th scope="row">{name}</th><td>{before ?? "산출 불가"}</td><td>{after ?? "산출 불가"}</td><td>{delta === null ? "—" : `${delta > 0 ? "+" : ""}${delta}`}</td></tr>; })}</tbody></DataTable></Section>
-    <Section title="검토 의견"><div className="analysis-box"><h3>코드 계산 결과 기반</h3><ol>{scenario.analysis.map((item) => <li key={item}>{item}</li>)}</ol></div></Section>
+    <Section title="핵심 지표"><DataTable label="정책 보고서 핵심 지표"><thead><tr><th scope="col">지표</th><th scope="col">현재</th><th scope="col">정책안</th><th scope="col">변화</th></tr></thead><tbody>{metricNames.map((name, index) => { const before = baselineMetrics[index]; const after = metrics[index]; const delta = before === null || after === null ? null : after - before; return <tr key={name}><th scope="row">{name}</th><td>{before ?? "산출 불가"}</td><td>{after ?? "산출 불가"}</td><td>{delta === null ? "—" : `${delta > 0 ? "+" : ""}${delta}`}</td></tr>; })}</tbody></DataTable></Section>
+    <Section title="검토 의견"><div className="analysis-box"><h3>코드 계산 결과 기반</h3><ol>{analysis.map((item) => <li key={item}>{item}</li>)}</ol></div></Section>
     <p className="report-disclaimer">인구·시설은 실측(기준 {asOfMonth}), 종목별 강좌는 시연값입니다. 실제 정책 판단에는 강좌-지역 결합 데이터, 예산, 입지와 이용률 검토가 필요합니다.</p>
     <div className="page-actions report-actions"><Link className="secondary-button" href="/compare">목록</Link><div><button className="secondary-button" type="button" onClick={() => window.print()}>PDF 저장·인쇄</button><Link className="primary-button" href="/public/policies">시민 공개 목록</Link></div></div>
   </article>;

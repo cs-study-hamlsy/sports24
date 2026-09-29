@@ -12,10 +12,17 @@ export type Scenario = {
   analysis: string[];
 };
 
+/** 이전 시연 세션에 저장된 B안 표시명을 현재 안내 문구에 맞춘다. */
+export function normalizeScenario(scenario: Scenario): Scenario {
+  return scenario.id === "b" && scenario.name === "B안 (AI 대안)"
+    ? { ...scenario, name: "B안 (대안 예시)" }
+    : scenario;
+}
+
 // 지역과 무관한 강좌 조정 예시. 선택한 지역의 강좌 위에서 지표·분석을 다시 계산한다.
 export const scenarioTemplates: { id: string; name: string; changes: Record<string, number>; date: string }[] = [
   { id: "a", name: "A안", changes: { 수영: 5, 배드민턴: 5 }, date: "2026.09.21" },
-  { id: "b", name: "B안 (AI 대안)", changes: { 수영: 3, 배드민턴: 3, 생활체조: 4 }, date: "2026.09.21" },
+  { id: "b", name: "B안 (대안 예시)", changes: { 수영: 3, 배드민턴: 3, 생활체조: 4 }, date: "2026.09.21" },
   { id: "c", name: "C안 편중 완화형", changes: { 태권도: -2, 수영: 3, 배드민턴: 2, 생활체조: 4 }, date: "2026.09.22" },
 ];
 
