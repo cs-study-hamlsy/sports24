@@ -30,7 +30,7 @@ export function describeScenario(courses: SportSupply[], changes: Record<string,
   return [
     `강좌 합계는 ${total}개에서 ${nextTotal}개로 바뀝니다.`,
     `종목 구성 유사도 ${before[0]} → ${after[0]}, 다양성 ${before[1]} → ${after[1]}, 편중도 ${before[2]} → ${after[2]} (낮을수록 분산).`,
-    leadingGap ? `${leadingGap.sport} 비중은 시연 비교지역 평균보다 ${Math.abs(leadingGap.gap).toFixed(1)}%p ${leadingGap.gap < 0 ? "낮습니다" : "높습니다"}.` : "비교 가능한 종목이 없습니다.",
+    leadingGap ? `${leadingGap.sport} 비중은 비교지역 평균보다 ${Math.abs(leadingGap.gap).toFixed(1)}%p ${leadingGap.gap < 0 ? "낮습니다" : "높습니다"}.` : "비교 가능한 종목이 없습니다.",
     "연령별 적합도는 수강 대상·실제 수요 자료가 없어 산출하지 않습니다.",
   ];
 }

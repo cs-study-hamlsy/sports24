@@ -111,7 +111,7 @@ function describeGaps(courses: { sport: string; share: number; comparison: numbe
     ? `${low.sport} 강좌 비중이 ${low.share.toFixed(1)}%로 유사지역 평균(${low.comparison.toFixed(1)}%) 대비 ${Math.abs(low.gap).toFixed(1)}%p 낮음`
     : `${low.sport} 강좌 비중은 유사지역 평균과 대체로 유사한 범위임`);
   const leadingShare = [...rated].sort((left, right) => right.share - left.share).slice(0, 3).reduce((sum, course) => sum + course.share, 0);
-  lines.push(`상위 3개 종목이 전체 시연 강좌의 ${leadingShare.toFixed(1)}%를 차지해 종목 구성 분산 정도를 함께 검토할 수 있음`);
+  lines.push(`상위 3개 종목이 전체 강좌의 ${leadingShare.toFixed(1)}%를 차지해 종목 구성 분산 정도를 함께 검토할 수 있음`);
   return lines;
 }
 

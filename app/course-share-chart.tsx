@@ -17,7 +17,7 @@ export function CourseShareChart({ courses, changes }: Props) {
     : [{ key: "current", label: "선택 지역", className: "current" }, { key: "peer", label: "유사지역 평균", className: "peer" }] as const;
 
   return <figure className="course-share-chart" aria-label="종목별 강좌 비중 비교 그래프">
-    <figcaption>종목별 비중 비교 <small>강좌 수는 시연값 · 단위 %</small></figcaption>
+    <figcaption>종목별 비중 비교 <small>단위 %</small></figcaption>
     <div className="course-chart-legend">{series.map((item) => <span key={item.key}><i className={`chart-swatch ${item.className}`} aria-hidden="true" />{item.label}</span>)}</div>
     <div className="course-chart-rows">{rows.map((row) => <div className="course-chart-row" key={row.sport}>
       <strong>{row.sport}</strong>

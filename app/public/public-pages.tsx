@@ -13,11 +13,11 @@ const demoScenarios = demoScenariosFor(region);
 // 공개 화면 메타데이터. 실측 정제 데이터가 연결되면 기준월·출처·공개상태를 실제 값으로 교체한다.
 const publicMeta = {
   asOfMonth: `인구 ${asOfMonth} 기준 · 시설 ${facilityCollectedAt} 조회`,
-  source: "주민등록 연령별 인구·전국체육시설 정보(시도 주소 확인분) · 스포츠강좌 등록강좌(시연값)",
-  status: "시연 공개",
+  source: "주민등록 연령별 인구 · 전국체육시설 정보",
+  status: "정보 제공",
 };
 // 정책안별 공개 상태(시연값). 실제 서비스에서는 담당자 승인 절차와 연동한다.
-const policyStatus: Record<string, string> = Object.fromEntries(demoScenarios.map((scenario) => [scenario.id, "시연 정책안"]));
+const policyStatus: Record<string, string> = Object.fromEntries(demoScenarios.map((scenario) => [scenario.id, "정책 검토안"]));
 
 function MetaBar() {
   return <dl className="public-meta-bar">
@@ -31,7 +31,7 @@ function PublicShell({ title, description, children }: { title: string; descript
   return <div className="public-shell">
     <header className="public-header"><BrandLockup compact /><nav aria-label="시민 공개 메뉴"><Link href="/public">안내</Link><Link href={`/public/regions/${region.id}`}>지역현황</Link><Link href="/public/policies">정책결과</Link><Link href="/">담당자 화면</Link></nav></header>
     <main><div className="public-heading"><p>운동24 시민 공개정보</p><h1>{title}</h1><span>{description}</span></div><MetaBar />{children}</main>
-    <footer><span>운동24</span><span>인구·시설은 실측 정제값, 종목별 강좌·정책안은 시연값입니다.</span></footer>
+    <footer><span>운동24</span><span>지역 체육공급 정보와 정책 검토 결과를 제공합니다.</span></footer>
   </div>;
 }
 
@@ -54,7 +54,7 @@ function PublicRegion({ regionId }: { regionId: string }) {
 }
 
 function PublicPolicies() {
-  return <PublicShell title="공개 정책결과" description="시연 정책안의 강좌 조정 내용과 관측 가능한 지표 변화를 확인합니다.">
+  return <PublicShell title="공개 정책결과" description="정책안의 강좌 조정 내용과 지표 변화를 확인합니다.">
     <Section title="원주시 공개 정책안" unit={`총 ${demoScenarios.length}건`}><DataTable label="시민 공개 정책안 목록"><thead><tr><th scope="col">정책안</th><th scope="col">주요 조정</th><th scope="col">등록일</th><th scope="col">공개 상태</th><th scope="col">상세</th></tr></thead><tbody>{demoScenarios.map((scenario) => <tr key={scenario.id}><th scope="row">{scenario.name}</th><td className="text-left">{changesLabel(scenario.changes)}</td><td>{scenario.date}</td><td><span className="public-status-badge">{policyStatus[scenario.id] ?? "검토 중"}</span></td><td><Link className="table-link" href={`/public/policies/${scenario.id}`}>결과 보기</Link></td></tr>)}</tbody></DataTable></Section>
     <PublicDataNotice />
   </PublicShell>;
@@ -71,5 +71,5 @@ function PublicPolicy({ scenarioId }: { scenarioId: string }) {
 }
 
 function PublicDataNotice() {
-  return <aside className="public-data-notice"><b>데이터 안내</b><p>인구는 {asOfMonth} 기준 실측값, 시설은 {facilityCollectedAt} 조회한 시도 주소 확인분입니다. 종목별 강좌와 정책안은 시연값이며, 담당자 공개 승인 절차는 연결되지 않았습니다.</p></aside>;
+  return <aside className="public-data-notice"><b>데이터 안내</b><p>인구는 {asOfMonth} 기준, 시설은 {facilityCollectedAt} 조회한 시도 주소 확인분입니다. 정책안은 검토용이며, 실제 시행 효과를 보증하지 않습니다.</p></aside>;
 }

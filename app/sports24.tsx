@@ -6,8 +6,9 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { asOfMonth, facilityCollectedAt, getRegion, region as defaultRegion, regions, type Region } from "../lib/regions";
 import { baselineFor, changesLabel, courseBudget, demoDataVersion, demoScenariosFor, metricNames, restoreDemoScenariosFor, Scenario, scenarioTemplates, usedCourses } from "../data/scenarios";
 import { calculateSupplyMetrics, describeScenario } from "../lib/simulation";
-import { formatAiAnalysis } from "../lib/ai-analysis";
+import { formatAiAnalysis, formatAiReport, type AiReportType } from "../lib/ai-analysis";
 import { provinceOptions, regionsForProvince } from "../lib/region-options";
+import { catalogProvinces, catalogRegionById, firstRegionForProvince } from "../lib/region-catalog";
 import { AppShell, DataTable, Section, SideItem } from "./ui";
 import { CourseShareChart } from "./course-share-chart";
 
@@ -117,7 +118,7 @@ export default function Sports24({ view }: { view: View }) {
       } else applyState(target, defaultsFor(target));
     } catch {
       applyState(getRegion(rid), defaultsFor(getRegion(rid)));
-      setNotice("저장된 시나리오를 읽지 못했습니다. 기본 시연안을 표시합니다.");
+      setNotice("저장된 시나리오를 읽지 못했습니다. 기본 정책안을 표시합니다.");
     }
     setRegionId(rid);
     setLoaded(true);
@@ -306,21 +307,21 @@ export default function Sports24({ view }: { view: View }) {
                   })}</tr>
                 </tbody>
               </DataTable>
-              <p className="table-note">시연 데이터의 종목 구성만 계산합니다. 유사도는 실제 수요 적합도를 뜻하지 않으며 연령별 적합도는 산출하지 않습니다.</p>
+              <p className="table-note">유사도는 실제 수요 적합도를 뜻하지 않으며 연령별 적합도는 산출하지 않습니다.</p>
             </Section>
-            <AiAnalysisPanel type="alternative" title="AI 대안 방향 제안" fallback="키가 없으면 아래 ‘B안 예시 불러오기’로 시연용 B안을 불러올 수 있습니다." context={{
+            <AiAnalysisPanel type="alternative" title="AI 대안 방향 제안" fallback="아래 ‘B안 예시 불러오기’로 비교안을 불러올 수 있습니다." context={{
               regionLabel: activeRegion.label,
               similarRegions: activeRegion.comparisonLabel,
               courseBudget,
               usedCourses: positiveUsed,
               currentChanges: changesLabel(draftChanges),
               metrics: metricNames.map((name, index) => ({ name, before: baselineMetrics[index], after: previewMetrics[index] })),
-              courses: activeRegion.courses.map((course) => ({ sport: course.sport, current: course.count, peerAverage: course.comparison })),
+              courses: activeRegion.courses.map((course) => ({ sport: course.sport, currentCount: course.count, peerAveragePercent: course.comparison })),
             }} />
             <div className="page-actions split-actions">
               <button type="button" className="secondary-button" onClick={() => { setDraftName("새 시나리오"); setDraftChanges({}); setVisibleSports(editableSports.slice(0, 7)); setNotice("강좌 조정값을 초기화했습니다."); }}>초기화</button>
               <div>
-                <button type="button" className="secondary-button" onClick={() => { setDraftName(demoScenarios[1].name); setDraftChanges({ ...demoScenarios[1].changes }); setNotice("시연용 B안을 불러왔습니다. 위 ‘AI 대안 방향 제안’에서 근거 설명을 생성할 수 있습니다."); }}>B안 예시 불러오기</button>
+                <button type="button" className="secondary-button" onClick={() => { setDraftName(demoScenarios[1].name); setDraftChanges({ ...demoScenarios[1].changes }); setNotice("B안을 불러왔습니다. 위 ‘AI 대안 방향 제안’에서 근거 설명을 생성할 수 있습니다."); }}>B안 예시 불러오기</button>
                 <button type="button" className="secondary-button" onClick={saveScenario}>시나리오 저장</button>
                 <button type="button" className="primary-button" onClick={openResult}>결과조회</button>
               </div>
@@ -343,7 +344,7 @@ export default function Sports24({ view }: { view: View }) {
               </Section>
             </div>
             <div id="comparison">
-              <Section title="지표 비교" unit="시연 데이터 기준 · 굵은 글씨: 항목별 최고값 (편중도는 최저값)">
+              <Section title="지표 비교" unit="굵은 글씨: 항목별 최고값 (편중도는 최저값)">
                 <DataTable label="시나리오 지표 비교 표" className="compare-metrics-table">
                   <thead><tr><th scope="col">지표명</th><th scope="col">현재</th>{scenarios.filter((item) => selectedScenarioIds.includes(item.id)).map((scenario) => <th scope="col" key={scenario.id}>{scenario.name.split(" ")[0]}</th>)}</tr></thead>
                   <tbody>{metricNames.map((name, index) => {
@@ -379,9 +380,10 @@ export default function Sports24({ view }: { view: View }) {
 function Overview({ region: currentRegion, onSelectRegion, onSimulation }: { region: Region; onSelectRegion: (id: string) => void; onSimulation: () => void }) {
   const [draftRegion, setDraftRegion] = useState(currentRegion.id);
   const [comparisonId, setComparisonId] = useState("similar");
+  const [unavailableRegionId, setUnavailableRegionId] = useState<string | null>(null);
   useEffect(() => { setDraftRegion(currentRegion.id); }, [currentRegion.id]);
   useEffect(() => { setComparisonId("similar"); }, [currentRegion.id]);
-  const comparisonPreview = getRegion(draftRegion);
+  const comparisonPreview = catalogRegionById(draftRegion)?.available ? getRegion(draftRegion) : null;
   const comparisonRegion = comparisonId === "similar" ? null : getRegion(comparisonId);
   const displayRegion = comparisonRegion ? {
     ...currentRegion,
@@ -394,29 +396,42 @@ function Overview({ region: currentRegion, onSelectRegion, onSimulation }: { reg
     }),
   } : currentRegion;
   const totalCourses = displayRegion.courses.reduce((sum, course) => sum + course.count, 0);
-  const selectDraftRegion = (id: string) => { setDraftRegion(id); setComparisonId("similar"); };
+  const selectDraftRegion = (id: string) => {
+    setDraftRegion(id);
+    setComparisonId("similar");
+    setUnavailableRegionId(catalogRegionById(id)?.available ? null : id);
+  };
+  const controls = <form className="filter-bar overview-filter" noValidate onSubmit={(event) => {
+    event.preventDefault();
+    if (catalogRegionById(draftRegion)?.available) {
+      setUnavailableRegionId(null);
+      onSelectRegion(draftRegion);
+    } else setUnavailableRegionId(draftRegion);
+  }}>
+    <RegionSelectorFields idPrefix="overview" regionId={draftRegion} onChange={selectDraftRegion} scope="national" />
+    <label htmlFor="comparison-region">비교지역</label><select id="comparison-region" value={comparisonId} disabled={!comparisonPreview} onChange={(event) => setComparisonId(event.target.value)}><option value="similar">{comparisonPreview ? `자동 평균 (${comparisonPreview.comparisonLabel})` : "지역 데이터 준비 중"}</option>{comparisonPreview && regions.filter((item) => item.id !== draftRegion).map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
+    <button className="primary-button" type="submit">조회</button>
+  </form>;
+  const unavailableRegion = unavailableRegionId ? catalogRegionById(unavailableRegionId) : null;
+  if (unavailableRegion) return <>{controls}<div className="region-unavailable" role="status"><h2>{unavailableRegion.provinceName} {unavailableRegion.name}</h2><p>이 지역의 체육공급 지표는 준비 중입니다. 다른 지역을 선택해 조회해 주세요.</p></div></>;
   return <>
-    <form className="filter-bar overview-filter" noValidate onSubmit={(event) => { event.preventDefault(); onSelectRegion(draftRegion); }}>
-      <RegionSelectorFields idPrefix="overview" regionId={draftRegion} onChange={selectDraftRegion} />
-      <label htmlFor="comparison-region">비교지역</label><select id="comparison-region" value={comparisonId} onChange={(event) => setComparisonId(event.target.value)}><option value="similar">자동 평균 ({comparisonPreview.comparisonLabel})</option>{regions.filter((item) => item.id !== draftRegion).map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
-      <button className="primary-button" type="submit">조회</button>
-    </form>
+    {controls}
     <div className="region-summary-strip">
       <div><span>총 주민등록 인구</span><strong>{currentRegion.totalPopulation.toLocaleString("ko-KR")}명</strong><small>실측 · 기준 {asOfMonth}</small></div>
       <div><span>정상운영 등록 체육시설</span><strong>{currentRegion.facilities.toLocaleString("ko-KR")}개소</strong><small>실측 · {facilityCollectedAt} 조회 · 시·도 주소 확인분</small></div>
-      <div><span>등록 강좌</span><strong>{totalCourses}개</strong><small>시연값 · 지역 식별 자료 확보 시 실측 전환</small></div>
+      <div><span>등록 강좌</span><strong>{totalCourses}개</strong><small>종목별 구성</small></div>
     </div>
     <div className="overview-grid">
-      <Section title="주요지표"><DataTable label="주요지표 표" className="metrics-table"><thead><tr><th scope="col">지표명</th><th scope="col">값</th><th scope="col">판정</th><th scope="col">비고</th></tr></thead><tbody>{metricNames.map((name, index) => { const value = calculateSupplyMetrics(displayRegion.courses)[index]; return <tr key={name}><th scope="row">{name}</th><td>{value ?? "—"}</td><td>{value === null ? "산출 불가" : "참고"}</td><td>{["유사지역 종목 비중과의 일치도", "종목 비중의 고른 정도", "종목 비중 제곱합(낮을수록 분산)", "연령별 실제 수요·수강 대상 자료 없음", "연령별 실제 수요·수강 대상 자료 없음"][index]}</td></tr>; })}</tbody></DataTable><p className="table-note">※ 현재 강좌 수와 비교지역 비중은 목업 시연용 예시값이며 실제 지역 통계가 아닙니다.</p></Section>
+      <Section title="주요지표"><DataTable label="주요지표 표" className="metrics-table"><thead><tr><th scope="col">지표명</th><th scope="col">값</th><th scope="col">판정</th><th scope="col">비고</th></tr></thead><tbody>{metricNames.map((name, index) => { const value = calculateSupplyMetrics(displayRegion.courses)[index]; return <tr key={name}><th scope="row">{name}</th><td>{value ?? "—"}</td><td>{value === null ? "산출 불가" : "참고"}</td><td>{["유사지역 종목 비중과의 일치도", "종목 비중의 고른 정도", "종목 비중 제곱합(낮을수록 분산)", "연령별 실제 수요·수강 대상 자료 없음", "연령별 실제 수요·수강 대상 자료 없음"][index]}</td></tr>; })}</tbody></DataTable></Section>
       <div id="population"><Section title="연령별 인구 구성"><DataTable label="연령별 인구 구성 표"><thead><tr><th scope="col">구분</th>{ageLabels.map((label) => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody><tr><th scope="row">{displayRegion.shortName}</th>{displayRegion.population.region.map((value, index) => <td className={index === 3 ? "danger" : ""} key={ageLabels[index]}>{value}%</td>)}</tr><tr><th scope="row">비교지역 평균</th>{displayRegion.population.comparison.map((value, index) => <td key={ageLabels[index]}>{value}%</td>)}</tr></tbody></DataTable><p className="table-note">※ 연령별 인구는 행정안전부 주민등록 인구(기준 {asOfMonth}) 실측값입니다. 잠재 수요 참고용이며 종목 선호를 의미하지 않습니다.</p></Section></div>
       <div id="courses"><Section title="종목별 강좌 현황" unit="(단위: 개, %)"><CourseShareChart courses={displayRegion.courses} /><DataTable label="종목별 강좌 현황 표"><thead><tr><th scope="col">종목</th><th scope="col">강좌수</th><th scope="col">비중</th><th scope="col">비교지역 평균</th><th scope="col">차이</th></tr></thead><tbody>{displayRegion.courses.map((course) => { const difference = course.share - course.comparison; return <tr key={course.sport}><th scope="row">{course.sport}</th><td>{course.count}</td><td>{course.share.toFixed(1)}</td><td>{course.comparison.toFixed(1)}</td><td className={Math.abs(difference) >= 7 ? "danger" : ""}>{difference > 0 ? "+" : ""}{difference.toFixed(1)}</td></tr>; })}<tr className="total-row"><th scope="row">합계</th><td>{totalCourses}</td><td>100.0</td><td>100.0</td><td /></tr></tbody></DataTable></Section></div>
-      <Section title="분석의견"><div className="analysis-box"><h3>현황 분석의견 <span>(시연 데이터 기준)</span></h3><ol>{currentRegion.analysis.slice(0, 3).map((item) => <li key={item}>{item}</li>)}<li>연령별 강좌 적합도는 수강 대상·실제 수요 자료가 없어 판단하지 않습니다.</li></ol></div></Section>
+      <div className="overview-analysis"><Section title="분석의견"><div className="analysis-box"><h3>현황 분석의견</h3><ol>{currentRegion.analysis.slice(0, 3).map((item) => <li key={item}>{item}</li>)}<li>연령별 강좌 적합도는 수강 대상·실제 수요 자료가 없어 판단하지 않습니다.</li></ol></div></Section></div>
     </div>
     <AiAnalysisPanel type="gap" title="AI Gap 분석" fallback="AI 분석 없이도 위 지표와 분석의견은 그대로 확인할 수 있습니다." context={{
       regionLabel: displayRegion.label,
       similarRegions: displayRegion.comparisonLabel,
       metrics: metricNames.map((name, index) => ({ name, value: calculateSupplyMetrics(displayRegion.courses)[index] })),
-      courses: displayRegion.courses.map((course) => ({ sport: course.sport, count: course.count, share: course.share, peerAverage: course.comparison })),
+      courses: displayRegion.courses.map((course) => ({ sport: course.sport, count: course.count, sharePercent: course.share, peerAveragePercent: course.comparison })),
       population: { region: displayRegion.population.region, peerAverage: displayRegion.population.comparison, labels: ["청소년", "청년", "중장년", "고령"] },
     }} />
     <div className="page-actions"><button type="button" className="secondary-button" onClick={() => downloadCsv(`${displayRegion.shortName}-체육공급현황.csv`, [["종목", "강좌수", "비중", "비교지역 평균"], ...displayRegion.courses.map((course) => [course.sport, course.count, course.share, course.comparison])])}>CSV 다운로드</button><button type="button" className="secondary-button" onClick={() => window.print()}>인쇄</button><button type="button" className="primary-button" onClick={onSimulation}>정책시뮬레이션</button></div>
@@ -579,7 +594,7 @@ function Result({ region, scenario, onList, onCompare }: { region: Region; scena
       <Section title="지표 비교"><DataTable label="시나리오 지표 비교 표" className="result-metrics-table"><thead><tr><th scope="col">지표명</th><th scope="col">현재</th><th scope="col">변경 후</th><th scope="col">증감</th><th scope="col">판정</th></tr></thead><tbody>{metricNames.map((name, index) => { const before = baselineMetrics[index]; const after = scenarioMetrics[index]; const delta = before === null || after === null ? null : after - before; const improved = delta !== null && (index === 2 ? delta < 0 : delta > 0); return <tr key={name}><th scope="row">{name}</th><td>{before ?? "산출 불가"}</td><td><strong>{after ?? "산출 불가"}</strong></td><td className={delta === null ? "" : improved ? "positive" : delta === 0 ? "" : "danger"}>{delta === null ? "—" : signed(delta)}</td><td className={delta === null ? "" : improved ? "positive" : delta === 0 ? "" : "danger"}>{delta === null ? "산출 불가" : improved ? "개선" : delta === 0 ? "유지" : "악화"}</td></tr>; })}</tbody></DataTable></Section>
       <Section title="종목 구성 변화" unit="(단위: %)"><CourseShareChart courses={region.courses} changes={scenario.changes} /><DataTable label="종목 구성 변화 표" className="result-course-table"><thead><tr><th scope="col">종목</th><th scope="col">현재 비중</th><th scope="col">변경 후</th><th scope="col">비교지역</th><th scope="col">비교</th></tr></thead><tbody>{visibleCourses.map((course: Course) => { const after = ((course.count + (scenario.changes[course.sport] ?? 0)) / total) * 100; const label = after < course.comparison - 3 ? "여전히 낮음" : after > course.comparison + 3 ? "여전히 높음" : Math.abs(after - course.comparison) <= 0.5 ? "유사 수준" : "-"; return <tr key={course.sport}><th scope="row">{course.sport}</th><td>{course.share.toFixed(1)}</td><td><strong>{after.toFixed(1)}</strong></td><td>{course.comparison.toFixed(1)}</td><td className={label.startsWith("여전히") ? "danger" : ""}>{label}</td></tr>; })}</tbody></DataTable></Section>
     </div>
-    <div id="analysis"><Section title="분석의견"><div className="analysis-box result-analysis"><h3>시나리오 분석의견 <span>(시연 데이터 기반 자동분석)</span></h3><ol>{describeScenario(region.courses, scenario.changes).map((item) => <li key={item}>{item}</li>)}</ol></div></Section></div>
+    <div id="analysis"><Section title="분석의견"><div className="analysis-box result-analysis"><h3>시나리오 분석의견</h3><ol>{describeScenario(region.courses, scenario.changes).map((item) => <li key={item}>{item}</li>)}</ol></div></Section></div>
     <AiAnalysisPanel type="review" title="AI 정책 검토" fallback="AI 검토가 없어도 위 자동분석 결과는 그대로 사용할 수 있습니다." context={{
       regionLabel: region.label,
       similarRegions: region.comparisonLabel,
@@ -598,6 +613,13 @@ function AiAnalysisPanel({ type, title, context, fallback }: { type: string; tit
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [text, setText] = useState("");
   const [message, setMessage] = useState("");
+  const reportType = type === "gap" || type === "review" || type === "alternative" ? type as AiReportType : null;
+  const reportContext = reportType ? context as { regionLabel?: string; scenario?: string; asOfMonth?: string; similarRegions?: string; courseBudget?: number } : null;
+  const reportLabels = {
+    gap: { name: "지역 체육공급 분석 의견서", scope: "검토 범위: 종목별 강좌 구성과 유사지역 비교값. 실제 이용 수요와 공급 부족 여부는 별도 자료로 확인해야 합니다." },
+    review: { name: "정책 검토 의견서", scope: "검토 범위: 강좌 조정안을 가상 적용한 종목 구성 지표. 실제 시행 효과와 수요는 별도 검증이 필요합니다." },
+    alternative: { name: "강좌 조정 대안 의견서", scope: "검토 범위: 현재 강좌 구성과 자원 한도를 바탕으로 한 조정 방향. 제안된 증감은 시뮬레이션으로 재계산해야 합니다." },
+  };
 
   async function run() {
     setStatus("loading");
@@ -628,13 +650,30 @@ function AiAnalysisPanel({ type, title, context, fallback }: { type: string; tit
         <p>계산 엔진이 산출한 값만 전달해 AI가 해석·검토 의견을 생성합니다. 수치는 AI가 만들지 않습니다.</p>
         <button type="button" className="secondary-button" onClick={run} disabled={status === "loading"}>{status === "loading" ? "생성 중…" : status === "done" ? "다시 생성" : "AI 분석 생성"}</button>
       </div>
-      {status === "done" && <ul className="ai-panel-body" aria-live="polite">{formatAiAnalysis(text).map((item, index) => <li key={`${item.heading}-${index}`}><p>{item.heading && <><strong>{item.heading}</strong>{item.body && " — "}</>}{item.body}</p></li>)}</ul>}
+      {status === "done" && (reportType && reportContext ? <article className="policy-review" aria-live="polite">
+        <header><p>운동24 · {reportLabels[reportType].name}</p><h3>{reportType === "review" ? reportContext.scenario ?? "정책안 검토" : reportContext.regionLabel ?? "지역 분석"}</h3><div><span>대상지역 {reportContext.regionLabel}</span>{reportType === "gap" && <span>비교 기준 {reportContext.similarRegions}</span>}{reportType === "alternative" && <span>추가 한도 {reportContext.courseBudget}개 강좌</span>}{reportType === "review" && <span>인구 기준 {reportContext.asOfMonth}</span>}</div></header>
+        <p className="policy-review-scope">{reportLabels[reportType].scope}</p>
+        {formatAiReport(text, reportType).map((section, index) => <section key={`${section.heading}-${index}`}><h4>{section.heading}</h4><p>{section.body}</p></section>)}
+      </article> : <ul className="ai-panel-body" aria-live="polite">{formatAiAnalysis(text).map((item, index) => <li key={`${item.heading}-${index}`}><p>{item.heading && <><strong>{item.heading}</strong>{item.body && " — "}</>}{item.body}</p></li>)}</ul>)}
       {status === "error" && <p className="inline-notice neutral-notice" role="status">{message}{fallback ? ` ${fallback}` : ""}</p>}
     </div>
   </Section>;
 }
 
-function RegionSelectorFields({ idPrefix, regionId, onChange }: { idPrefix: string; regionId: string; onChange: (id: string) => void }) {
+function RegionSelectorFields({ idPrefix, regionId, onChange, scope = "available" }: { idPrefix: string; regionId: string; onChange: (id: string) => void; scope?: "available" | "national" }) {
+  if (scope === "national") {
+    const selected = catalogRegionById(regionId) ?? catalogRegionById("wonju")!;
+    const detailedRegions = catalogProvinces.find((province) => province.id === selected.provinceId)?.regions ?? [];
+    return <>
+      <label htmlFor={`${idPrefix}-province`}>시·도</label>
+      <select id={`${idPrefix}-province`} value={selected.provinceId} onChange={(event) => {
+        const first = firstRegionForProvince(event.target.value);
+        if (first) onChange(first.id);
+      }}>{catalogProvinces.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+      <label htmlFor={`${idPrefix}-region`}>세부지역</label>
+      <select id={`${idPrefix}-region`} value={selected.id} onChange={(event) => onChange(event.target.value)}>{detailedRegions.map((item) => <option key={item.id} value={item.id}>{item.name}{item.available ? "" : " (준비 중)"}</option>)}</select>
+    </>;
+  }
   const selected = getRegion(regionId);
   const provinces = provinceOptions(regions);
   const detailedRegions = regionsForProvince(regions, selected.provinceId);
