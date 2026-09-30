@@ -24,6 +24,9 @@ export const scenarioTemplates: { id: string; name: string; changes: Record<stri
   { id: "a", name: "A안", changes: { 수영: 5, 배드민턴: 5 }, date: "2026.09.21" },
   { id: "b", name: "B안 (대안 예시)", changes: { 수영: 3, 배드민턴: 3, 생활체조: 4 }, date: "2026.09.21" },
   { id: "c", name: "C안 편중 완화형", changes: { 태권도: -2, 수영: 3, 배드민턴: 2, 생활체조: 4 }, date: "2026.09.22" },
+  { id: "d", name: "D안 생활체육 확대형", changes: { 태권도: -2, 수영: 2, 배드민턴: 2, 생활체조: 2, "요가·필라테스": 2 }, date: "2026.09.23" },
+  { id: "e", name: "E안 수영 접근성 강화형", changes: { 태권도: -3, 수영: 5, 생활체조: 2, 기타: 1 }, date: "2026.09.24" },
+  { id: "f", name: "F안 종목 다양화형", changes: { 배드민턴: 2, 생활체조: 2, "요가·필라테스": 2, 기타: 2 }, date: "2026.09.25" },
 ];
 
 /** 선택한 지역의 현재 종목 구성 지표. */

@@ -137,6 +137,9 @@ button:disabled { cursor: not-allowed; opacity: 0.5; }
 .side-panel {
   min-width: 0;
   min-height: calc(100vh - 192px);
+  position: sticky;
+  top: 16px;
+  align-self: start;
   padding: 28px 22px;
   background: #fafafa;
   border-right: 1px solid #dde1e6;
@@ -524,7 +527,7 @@ tbody th { text-align: left; font-weight: 400; }
   .global-nav { min-height: 54px; padding-left: 0; }
   .global-nav a, .global-nav span { min-width: 142px; padding: 0 20px; }
   .workspace { grid-template-columns: minmax(0, 1fr); }
-  .side-panel { min-height: 0; padding: 16px; border-right: 0; border-bottom: 1px solid #dde1e6; }
+  .side-panel { position: static; min-height: 0; padding: 16px; border-right: 0; border-bottom: 1px solid #dde1e6; }
   .side-menu { display: grid; grid-template-columns: repeat(4, minmax(145px, 1fr)); overflow-x: auto; }
   .side-menu h2 { display: none; }
   .side-menu a, .side-menu > span { border-top: 0; border-right: 1px solid #dde2e8; white-space: nowrap; }

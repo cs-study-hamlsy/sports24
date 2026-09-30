@@ -52,6 +52,18 @@ function signed(value: number) {
   return `${value > 0 ? "+" : ""}${value}`;
 }
 
+function cleanMarkdownLine(line: string) {
+  return line.trim()
+    .replace(/^#{1,6}\s+/, "")
+    .replace(/^[-*+]\s+/, "• ")
+    .replace(/^\d+[.)]\s+/, "• ")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/__(.*?)__/g, "$1")
+    .replace(/\*(.*?)\*/g, "$1")
+    .replace(/_(.*?)_/g, "$1")
+    .replace(/`([^`]*)`/g, "$1");
+}
+
 function metricsFor(region: Region, scenario: Scenario) {
   return calculateSupplyMetrics(region.courses, scenario.changes);
 }
@@ -369,12 +381,25 @@ export default function Sports24({ view }: { view: View }) {
 
 function Overview({ region: currentRegion, onSelectRegion, onSimulation }: { region: Region; onSelectRegion: (id: string) => void; onSimulation: () => void }) {
   const [draftRegion, setDraftRegion] = useState(currentRegion.id);
+  const [comparisonId, setComparisonId] = useState("similar");
   useEffect(() => { setDraftRegion(currentRegion.id); }, [currentRegion.id]);
-  const totalCourses = currentRegion.courses.reduce((sum, course) => sum + course.count, 0);
+  useEffect(() => { setComparisonId("similar"); }, [currentRegion.id]);
+  const comparisonRegion = comparisonId === "similar" ? null : getRegion(comparisonId);
+  const displayRegion = comparisonRegion ? {
+    ...currentRegion,
+    comparisonLabel: comparisonRegion.shortName,
+    population: { ...currentRegion.population, comparison: comparisonRegion.population.region },
+    courses: currentRegion.courses.map((course) => {
+      const peer = comparisonRegion.courses.find((item) => item.sport === course.sport);
+      const peerTotal = comparisonRegion.courses.reduce((sum, item) => sum + item.count, 0) || 1;
+      return { ...course, comparison: Math.round(((peer?.count ?? 0) / peerTotal) * 1000) / 10 };
+    }),
+  } : currentRegion;
+  const totalCourses = displayRegion.courses.reduce((sum, course) => sum + course.count, 0);
   return <>
     <form className="filter-bar" noValidate onSubmit={(event) => { event.preventDefault(); onSelectRegion(draftRegion); }}>
       <label htmlFor="region">지역</label><select id="region" value={draftRegion} onChange={(event) => setDraftRegion(event.target.value)}>{regions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
-      <label htmlFor="comparison-region">비교지역</label><select id="comparison-region" defaultValue="similar"><option value="similar">{currentRegion.comparisonLabel}</option></select>
+      <label htmlFor="comparison-region">비교지역</label><select id="comparison-region" value={comparisonId} onChange={(event) => setComparisonId(event.target.value)}><option value="similar">유사지역 자동 평균 ({currentRegion.comparisonLabel})</option>{regions.filter((item) => item.id !== currentRegion.id).map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
       <button className="primary-button" type="submit">조회</button>
     </form>
     <div className="region-summary-strip">
@@ -383,19 +408,19 @@ function Overview({ region: currentRegion, onSelectRegion, onSimulation }: { reg
       <div><span>등록 강좌</span><strong>{totalCourses}개</strong><small>시연값 · 지역 식별 자료 확보 시 실측 전환</small></div>
     </div>
     <div className="overview-grid">
-      <Section title="주요지표"><DataTable label="주요지표 표" className="metrics-table"><thead><tr><th scope="col">지표명</th><th scope="col">값</th><th scope="col">판정</th><th scope="col">비고</th></tr></thead><tbody>{metricNames.map((name, index) => { const value = calculateSupplyMetrics(currentRegion.courses)[index]; return <tr key={name}><th scope="row">{name}</th><td>{value ?? "—"}</td><td>{value === null ? "산출 불가" : "참고"}</td><td>{["유사지역 종목 비중과의 일치도", "종목 비중의 고른 정도", "종목 비중 제곱합(낮을수록 분산)", "연령별 실제 수요·수강 대상 자료 없음", "연령별 실제 수요·수강 대상 자료 없음"][index]}</td></tr>; })}</tbody></DataTable><p className="table-note">※ 현재 강좌 수와 비교지역 비중은 목업 시연용 예시값이며 실제 지역 통계가 아닙니다.</p></Section>
-      <div id="population"><Section title="연령별 인구 구성"><DataTable label="연령별 인구 구성 표"><thead><tr><th scope="col">구분</th>{ageLabels.map((label) => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody><tr><th scope="row">{currentRegion.shortName}</th>{currentRegion.population.region.map((value, index) => <td className={index === 3 ? "danger" : ""} key={ageLabels[index]}>{value}%</td>)}</tr><tr><th scope="row">비교지역 평균</th>{currentRegion.population.comparison.map((value, index) => <td key={ageLabels[index]}>{value}%</td>)}</tr></tbody></DataTable><p className="table-note">※ 연령별 인구는 행정안전부 주민등록 인구(기준 {asOfMonth}) 실측값입니다. 잠재 수요 참고용이며 종목 선호를 의미하지 않습니다.</p></Section></div>
-      <div id="courses"><Section title="종목별 강좌 현황" unit="(단위: 개, %)"><CourseShareChart courses={currentRegion.courses} /><DataTable label="종목별 강좌 현황 표"><thead><tr><th scope="col">종목</th><th scope="col">강좌수</th><th scope="col">비중</th><th scope="col">비교지역 평균</th><th scope="col">차이</th></tr></thead><tbody>{currentRegion.courses.map((course) => { const difference = course.share - course.comparison; return <tr key={course.sport}><th scope="row">{course.sport}</th><td>{course.count}</td><td>{course.share.toFixed(1)}</td><td>{course.comparison.toFixed(1)}</td><td className={Math.abs(difference) >= 7 ? "danger" : ""}>{difference > 0 ? "+" : ""}{difference.toFixed(1)}</td></tr>; })}<tr className="total-row"><th scope="row">합계</th><td>{totalCourses}</td><td>100.0</td><td>100.0</td><td /></tr></tbody></DataTable></Section></div>
+      <Section title="주요지표"><DataTable label="주요지표 표" className="metrics-table"><thead><tr><th scope="col">지표명</th><th scope="col">값</th><th scope="col">판정</th><th scope="col">비고</th></tr></thead><tbody>{metricNames.map((name, index) => { const value = calculateSupplyMetrics(displayRegion.courses)[index]; return <tr key={name}><th scope="row">{name}</th><td>{value ?? "—"}</td><td>{value === null ? "산출 불가" : "참고"}</td><td>{["유사지역 종목 비중과의 일치도", "종목 비중의 고른 정도", "종목 비중 제곱합(낮을수록 분산)", "연령별 실제 수요·수강 대상 자료 없음", "연령별 실제 수요·수강 대상 자료 없음"][index]}</td></tr>; })}</tbody></DataTable><p className="table-note">※ 현재 강좌 수와 비교지역 비중은 목업 시연용 예시값이며 실제 지역 통계가 아닙니다.</p></Section>
+      <div id="population"><Section title="연령별 인구 구성"><DataTable label="연령별 인구 구성 표"><thead><tr><th scope="col">구분</th>{ageLabels.map((label) => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody><tr><th scope="row">{displayRegion.shortName}</th>{displayRegion.population.region.map((value, index) => <td className={index === 3 ? "danger" : ""} key={ageLabels[index]}>{value}%</td>)}</tr><tr><th scope="row">비교지역 평균</th>{displayRegion.population.comparison.map((value, index) => <td key={ageLabels[index]}>{value}%</td>)}</tr></tbody></DataTable><p className="table-note">※ 연령별 인구는 행정안전부 주민등록 인구(기준 {asOfMonth}) 실측값입니다. 잠재 수요 참고용이며 종목 선호를 의미하지 않습니다.</p></Section></div>
+      <div id="courses"><Section title="종목별 강좌 현황" unit="(단위: 개, %)"><CourseShareChart courses={displayRegion.courses} /><DataTable label="종목별 강좌 현황 표"><thead><tr><th scope="col">종목</th><th scope="col">강좌수</th><th scope="col">비중</th><th scope="col">비교지역 평균</th><th scope="col">차이</th></tr></thead><tbody>{displayRegion.courses.map((course) => { const difference = course.share - course.comparison; return <tr key={course.sport}><th scope="row">{course.sport}</th><td>{course.count}</td><td>{course.share.toFixed(1)}</td><td>{course.comparison.toFixed(1)}</td><td className={Math.abs(difference) >= 7 ? "danger" : ""}>{difference > 0 ? "+" : ""}{difference.toFixed(1)}</td></tr>; })}<tr className="total-row"><th scope="row">합계</th><td>{totalCourses}</td><td>100.0</td><td>100.0</td><td /></tr></tbody></DataTable></Section></div>
       <Section title="분석의견"><div className="analysis-box"><h3>현황 분석의견 <span>(시연 데이터 기준)</span></h3><ol>{currentRegion.analysis.slice(0, 2).map((item) => <li key={item}>{item}</li>)}<li>연령별 강좌 적합도는 수강 대상·실제 수요 자료가 없어 판단하지 않습니다.</li></ol></div></Section>
     </div>
     <AiAnalysisPanel type="gap" title="AI Gap 분석" fallback="AI 분석 없이도 위 지표와 분석의견은 그대로 확인할 수 있습니다." context={{
-      regionLabel: currentRegion.label,
-      similarRegions: currentRegion.comparisonLabel,
-      metrics: metricNames.map((name, index) => ({ name, value: calculateSupplyMetrics(currentRegion.courses)[index] })),
-      courses: currentRegion.courses.map((course) => ({ sport: course.sport, count: course.count, share: course.share, peerAverage: course.comparison })),
-      population: { region: currentRegion.population.region, peerAverage: currentRegion.population.comparison, labels: ["청소년", "청년", "중장년", "고령"] },
+      regionLabel: displayRegion.label,
+      similarRegions: displayRegion.comparisonLabel,
+      metrics: metricNames.map((name, index) => ({ name, value: calculateSupplyMetrics(displayRegion.courses)[index] })),
+      courses: displayRegion.courses.map((course) => ({ sport: course.sport, count: course.count, share: course.share, peerAverage: course.comparison })),
+      population: { region: displayRegion.population.region, peerAverage: displayRegion.population.comparison, labels: ["청소년", "청년", "중장년", "고령"] },
     }} />
-    <div className="page-actions"><button type="button" className="secondary-button" onClick={() => downloadCsv(`${currentRegion.shortName}-체육공급현황.csv`, [["종목", "강좌수", "비중", "비교지역 평균"], ...currentRegion.courses.map((course) => [course.sport, course.count, course.share, course.comparison])])}>CSV 다운로드</button><button type="button" className="secondary-button" onClick={() => window.print()}>인쇄</button><button type="button" className="primary-button" onClick={onSimulation}>정책시뮬레이션</button></div>
+    <div className="page-actions"><button type="button" className="secondary-button" onClick={() => downloadCsv(`${displayRegion.shortName}-체육공급현황.csv`, [["종목", "강좌수", "비중", "비교지역 평균"], ...displayRegion.courses.map((course) => [course.sport, course.count, course.share, course.comparison])])}>CSV 다운로드</button><button type="button" className="secondary-button" onClick={() => window.print()}>인쇄</button><button type="button" className="primary-button" onClick={onSimulation}>정책시뮬레이션</button></div>
     <LiveCourseLookup region={currentRegion} />
     <LiveFacilityLookup region={currentRegion} />
   </>;
@@ -604,7 +629,7 @@ function AiAnalysisPanel({ type, title, context, fallback }: { type: string; tit
         <p>계산 엔진이 산출한 값만 전달해 AI가 해석·검토 의견을 생성합니다. 수치는 AI가 만들지 않습니다.</p>
         <button type="button" className="secondary-button" onClick={run} disabled={status === "loading"}>{status === "loading" ? "생성 중…" : status === "done" ? "다시 생성" : "AI 분석 생성"}</button>
       </div>
-      {status === "done" && <div className="ai-panel-body" aria-live="polite">{text.split("\n").map((line) => line.trim()).filter(Boolean).map((line, index) => <p key={index}>{line}</p>)}</div>}
+      {status === "done" && <div className="ai-panel-body" aria-live="polite">{text.split("\n").map(cleanMarkdownLine).filter(Boolean).map((line, index) => <p key={index}>{line}</p>)}</div>}
       {status === "error" && <p className="inline-notice neutral-notice" role="status">{message}{fallback ? ` ${fallback}` : ""}</p>}
     </div>
   </Section>;
