@@ -7,8 +7,9 @@
     "provinceLabel": "강원특별자치도",
     "comparisonLabel": "춘천시, 강릉시, 충주시",
     "asOfMonth": "2026-08",
+    "facilityCollectedAt": "2026-09-30",
     "totalPopulation": 365379,
-    "facilities": 926,
+    "facilities": 758,
     "facilityTypes": [
       {
         "type": "간이운동장",
@@ -16,7 +17,7 @@
       },
       {
         "type": "체력단련장",
-        "count": 96
+        "count": 75
       },
       {
         "type": "수영장",

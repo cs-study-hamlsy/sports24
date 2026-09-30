@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { asOfMonth, getRegion, region, regions, PEER_COUNT, type Region } from "../lib/regions";
+import { asOfMonth, facilityCollectedAt, getRegion, region, regions, PEER_COUNT, type Region } from "../lib/regions";
 import { baselineFor, changesLabel, courseBudget, demoDataVersion, demoScenariosFor, metricNames, normalizeScenario, restoreDemoScenariosFor, Scenario, usedCourses } from "../data/scenarios";
 import { calculateSupplyMetrics, describeScenario } from "../lib/simulation";
 import { AppShell, DataTable, Section, SideItem } from "./ui";
@@ -59,7 +59,7 @@ function RegionCompare() {
   const target = useSelectedRegion();
   return <>
     <div className="filter-bar compact-filter"><span className="filter-label">기준지역</span><strong>{target.label}</strong><span className="filter-label">유사지역 (자동 선정)</span><strong>{target.comparisonLabel}</strong></div>
-    <p className="inline-notice neutral-notice">유사지역과 비교 평균은 코드가 인구 구성·규모·강좌·시설 데이터로 계산합니다. 인구·시설은 실측(기준 {asOfMonth}), 종목별 강좌는 시연값입니다.</p>
+    <p className="inline-notice neutral-notice">유사지역과 비교 평균은 코드가 인구 구성·규모·강좌·시설 데이터로 계산합니다. 인구는 {asOfMonth} 기준, 시설은 {facilityCollectedAt} 조회·시도 주소 확인분입니다. 종목별 강좌는 시연값입니다.</p>
     <Section title="유사도 산정 결과" unit={`후보 ${target.rankedPeers.length}곳 중 상위 ${PEER_COUNT}곳 선정`}>
       <DataTable label="후보 지역 유사도 산정 결과" className="peer-score-table">
         <thead><tr><th scope="col">순위</th><th scope="col">후보지역</th><th scope="col">연령구성 차이</th><th scope="col">인구규모 차이</th><th scope="col">강좌총량 차이</th><th scope="col">시설수 차이</th><th scope="col">유사도</th><th scope="col">선정</th></tr></thead>
@@ -116,7 +116,7 @@ function FacilitySimulation() {
   };
   return <>
     <div className="filter-bar compact-filter"><span className="filter-label">대상지역</span><strong>{target.label}</strong><span className="filter-label">정상운영 등록 시설</span><strong>{target.facilities.toLocaleString("ko-KR")}개소</strong></div>
-    <p className="inline-notice neutral-notice">현재 시설 수는 전국체육시설 정보 API 실측값(정상운영, 기준 {asOfMonth})입니다. 증감·비용단위는 시연용 계획 입력이며 강좌 지표에는 합산하지 않습니다.</p>
+    <p className="inline-notice neutral-notice">현재 시설 수는 전국체육시설 정보 API에서 {facilityCollectedAt} 조회한 정상운영·시도 주소 확인분입니다. 증감·비용단위는 시연용 계획 입력이며 강좌 지표에는 합산하지 않습니다.</p>
     {notice && <p className="inline-notice" role="status">{notice}</p>}
     <Section title="시설 유형별 조정" unit="증설 +2 / 감축 −1 범위">
       <DataTable label="시설 유형별 조정 표" className="facility-table"><thead><tr><th scope="col">시설 유형</th><th scope="col">현재</th><th scope="col">증감</th><th scope="col">변경 후</th><th scope="col">시연 비용단위</th></tr></thead><tbody>{facilities.map((facility) => { const change = changes[facility.type] ?? 0; return <tr key={facility.type}><th scope="row">{facility.type}</th><td>{facility.count}</td><td><div className="stepper"><button type="button" aria-label={`${facility.type} 1개 감소`} onClick={() => update(facility.type, change - 1)}>−</button><output aria-label={`${facility.type} 증감`} className={change > 0 ? "positive" : change < 0 ? "danger" : ""}>{change > 0 ? `+${change}` : change}</output><button type="button" aria-label={`${facility.type} 1개 증가`} onClick={() => update(facility.type, change + 1)}>+</button></div></td><td><strong>{facility.count + change}</strong></td><td>{facility.unitCost}</td></tr>; })}</tbody></DataTable>
@@ -182,11 +182,11 @@ function PolicyReport({ scenarioId, reportRegionId }: { scenarioId: string; repo
   const metrics = calculateSupplyMetrics(target.courses, scenario.changes);
   const analysis = describeScenario(target.courses, scenario.changes);
   return <article className="report-sheet">
-    <div className="report-meta"><div><span>보고서 번호</span><strong>SPORTS24-{scenario.date.replaceAll(".", "")}-{scenario.id.toUpperCase()}</strong></div><div><span>대상지역</span><strong>{target.label}</strong></div><div><span>작성기준</span><strong>인구·시설 {asOfMonth} / 강좌 시연값</strong></div></div>
+    <div className="report-meta"><div><span>보고서 번호</span><strong>SPORTS24-{scenario.date.replaceAll(".", "")}-{scenario.id.toUpperCase()}</strong></div><div><span>대상지역</span><strong>{target.label}</strong></div><div><span>작성기준</span><strong>인구 {asOfMonth} / 시설 {facilityCollectedAt} 조회 / 강좌 시연값</strong></div></div>
     <Section title="정책안 요약"><DataTable label="정책안 요약"><tbody><tr><th scope="row">시나리오명</th><td>{scenario.name}</td><th scope="row">강좌 사용</th><td>{usedCourses(scenario.changes)} / {courseBudget}개</td></tr><tr><th scope="row">조정내용</th><td colSpan={3}>{changesLabel(scenario.changes)}</td></tr></tbody></DataTable></Section>
     <Section title="핵심 지표"><DataTable label="정책 보고서 핵심 지표"><thead><tr><th scope="col">지표</th><th scope="col">현재</th><th scope="col">정책안</th><th scope="col">변화</th></tr></thead><tbody>{metricNames.map((name, index) => { const before = baselineMetrics[index]; const after = metrics[index]; const delta = before === null || after === null ? null : after - before; return <tr key={name}><th scope="row">{name}</th><td>{before ?? "산출 불가"}</td><td>{after ?? "산출 불가"}</td><td>{delta === null ? "—" : `${delta > 0 ? "+" : ""}${delta}`}</td></tr>; })}</tbody></DataTable></Section>
     <Section title="검토 의견"><div className="analysis-box"><h3>코드 계산 결과 기반</h3><ol>{analysis.map((item) => <li key={item}>{item}</li>)}</ol></div></Section>
-    <p className="report-disclaimer">인구·시설은 실측(기준 {asOfMonth}), 종목별 강좌는 시연값입니다. 실제 정책 판단에는 강좌-지역 결합 데이터, 예산, 입지와 이용률 검토가 필요합니다.</p>
+    <p className="report-disclaimer">인구는 {asOfMonth} 기준 실측, 시설은 {facilityCollectedAt} 조회한 시도 주소 확인분입니다. 종목별 강좌는 시연값입니다. 실제 정책 판단에는 강좌-지역 결합 데이터, 예산, 입지와 이용률 검토가 필요합니다.</p>
     <div className="page-actions report-actions"><Link className="secondary-button" href="/compare">목록</Link><div><button className="secondary-button" type="button" onClick={() => window.print()}>PDF 저장·인쇄</button><Link className="primary-button" href="/public/policies">시민 공개 목록</Link></div></div>
   </article>;
 }

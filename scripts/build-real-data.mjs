@@ -7,6 +7,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { collectPages, summarizeFacilities } from "./facility-aggregation.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -15,6 +16,7 @@ const POPULATION_UDDI = "uddi:5beebd9e-8733-44f8-817f-9cfa03548b7a";
 const AS_OF_MONTH = "2026-08";
 const POPULATION_BASE = `https://api.odcloud.kr/api/15097972/v1/${POPULATION_UDDI}`;
 const FACILITY_BASE = "https://apis.data.go.kr/B551014/SRVC_API_SFMS_FACI/TODZ_API_SFMS_FACI";
+const FACILITY_COLLECTED_AT = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 
 // 시설 조정 시뮬레이션 기준값으로 쓸 대표 공공 체육시설 유형. 값이 작을수록 유사하게 비교된다.
 const FACILITY_TYPES = ["간이운동장", "체력단련장", "수영장", "축구장", "테니스장"];
@@ -75,16 +77,15 @@ function loadEnv() {
 }
 
 async function fetchJson(url) {
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      const response = await fetch(url, { signal: AbortSignal.timeout(30000) });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return await response.json();
-    } catch (error) {
-      if (attempt === 3) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 1500 * attempt));
-    }
+  const response = await fetch(url, { signal: AbortSignal.timeout(30000), cache: "no-store" });
+  if (!response.ok) {
+    const error = new Error(`HTTP ${response.status}`);
+    error.status = response.status;
+    const retryAfter = response.headers.get("retry-after");
+    if (retryAfter !== null && Number.isFinite(Number(retryAfter))) error.retryAfterSeconds = Number(retryAfter);
+    throw error;
   }
+  return response.json();
 }
 
 // 청소년(0~19) / 청년(20~39) / 중장년(40~64) / 고령(65+) 4구간 합계와 비율(%)을 계산한다.
@@ -94,6 +95,7 @@ async function fetchPopulation(key, sido, sigungu) {
   const data = await fetchJson(url);
   const rows = data.data ?? [];
   if (!rows.length) throw new Error(`인구 데이터 없음: ${sido} ${sigungu}`);
+  if (rows.length !== Number(data.matchCount)) throw new Error(`인구 데이터 페이지 누락: ${sido} ${sigungu}`);
   const buckets = [0, 0, 0, 0];
   let total = 0;
   for (const row of rows) {
@@ -111,32 +113,16 @@ async function fetchPopulation(key, sido, sigungu) {
 
 // cpb_nm(시군구)로 조회해 정상운영 등록 체육시설 수와 대표 유형별 수를 센다. 타 시도 동명 시군구는 시도명으로 걸러낸다.
 async function fetchFacilities(key, sido, sigungu) {
-  let pageNo = 1;
-  let total = Infinity;
-  let active = 0;
-  let fetched = 0;
-  const byType = Object.fromEntries(FACILITY_TYPES.map((type) => [type, 0]));
-  while (fetched < total) {
-    const url = `${FACILITY_BASE}?serviceKey=${key}&pageNo=${pageNo}&numOfRows=1000&resultType=JSON&cpb_nm=${encodeURIComponent(sigungu)}`;
+  const rows = await collectPages(async (pageNo, pageSize) => {
+    const url = `${FACILITY_BASE}?serviceKey=${key}&pageNo=${pageNo}&numOfRows=${pageSize}&resultType=JSON&cpb_nm=${encodeURIComponent(sigungu)}`;
     const data = await fetchJson(url);
+    const code = String(data?.response?.header?.resultCode ?? "");
+    if (code !== "00" && code !== "0000") throw new Error(`시설 API 오류: ${code || "missing"}`);
     const body = data?.response?.body;
-    total = Number(body?.totalCount) || 0;
     const item = body?.items?.item;
-    const rows = Array.isArray(item) ? item : item ? [item] : [];
-    if (!rows.length) break;
-    for (const row of rows) {
-      const status = String(row.faci_stat_nm ?? "");
-      const ctpv = String(row.addr_ctpv_nm ?? "").trim();
-      if (!status.includes("정상") || (ctpv !== "" && ctpv !== sido)) continue;
-      active++;
-      const type = String(row.ftype_nm ?? "").trim();
-      if (type in byType) byType[type]++;
-    }
-    fetched += rows.length;
-    pageNo++;
-    if (pageNo > 30) break;
-  }
-  return { active, facilityTypes: FACILITY_TYPES.map((type) => ({ type, count: byType[type] })) };
+    return { totalCount: Number(body?.totalCount), items: Array.isArray(item) ? item : item ? [item] : [] };
+  }, { pageSize: 1000 });
+  return summarizeFacilities(rows, sido, FACILITY_TYPES);
 }
 
 async function enrich(key, target) {
@@ -170,6 +156,7 @@ async function main() {
   const regionJson = [{
     id: base.id, label: base.label, shortName: base.shortName, provinceId: base.provinceId, provinceLabel: base.sido, comparisonLabel: base.comparisonLabel,
     asOfMonth: AS_OF_MONTH,
+    facilityCollectedAt: FACILITY_COLLECTED_AT,
     totalPopulation: base.totalPopulation, facilities: base.facilities, facilityTypes: base.facilityTypes,
     population: { region: base.population, comparison: base.population },
     courses: courses.map((course) => ({ ...course, comparison: course.share })),
@@ -193,7 +180,7 @@ ${candidate.courses.map((course) => `      { sport: ${JSON.stringify(course.spor
     ],
   },`).join("\n");
   const ts = `// 유사 지역 선정용 후보 데이터.
-// 인구(totalPopulation, population)와 시설 수(facilities)는 실측 공공데이터(기준월 ${AS_OF_MONTH})다.
+// 인구(totalPopulation, population)는 ${AS_OF_MONTH} 기준, 시설 수(facilities)는 ${FACILITY_COLLECTED_AT} 조회 실측값이다.
 // 종목별 강좌(courses)는 지역 식별자가 없는 스포츠강좌 API 한계로 시연값을 유지한다.
 // scripts/build-real-data.mjs로 재생성한다. 직접 수정하지 말 것.
 
@@ -207,7 +194,7 @@ export type CandidateRegion = {
   totalPopulation: number;
   /** 연령 구성 비율(%) 청소년(0~19) / 청년(20~39) / 중장년(40~64) / 고령(65+), 합 100 */
   population: [number, number, number, number];
-  /** 정상운영 등록 체육시설 수 (실측) */
+  /** 시·도 주소가 확인된 정상운영 등록 체육시설 수 (실측) */
   facilities: number;
   /** 대표 유형별 정상운영 시설 수 (실측) */
   facilityTypes: { type: string; count: number }[];

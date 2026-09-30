@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { asOfMonth, getRegion, region, regions } from "../../lib/regions";
+import { asOfMonth, facilityCollectedAt, getRegion, region, regions } from "../../lib/regions";
 import { changesLabel, demoScenariosFor, metricNames } from "../../data/scenarios";
 import { DataTable, Section, BrandLockup } from "../ui";
 import { CourseShareChart } from "../course-share-chart";
@@ -12,8 +12,8 @@ const demoScenarios = demoScenariosFor(region);
 
 // 공개 화면 메타데이터. 실측 정제 데이터가 연결되면 기준월·출처·공개상태를 실제 값으로 교체한다.
 const publicMeta = {
-  asOfMonth: `${asOfMonth} 기준`,
-  source: "주민등록 연령별 인구·전국체육시설 정보(실측) · 스포츠강좌 등록강좌(시연값)",
+  asOfMonth: `인구 ${asOfMonth} 기준 · 시설 ${facilityCollectedAt} 조회`,
+  source: "주민등록 연령별 인구·전국체육시설 정보(시도 주소 확인분) · 스포츠강좌 등록강좌(시연값)",
   status: "시연 공개",
 };
 // 정책안별 공개 상태(시연값). 실제 서비스에서는 담당자 승인 절차와 연동한다.
@@ -21,7 +21,7 @@ const policyStatus: Record<string, string> = Object.fromEntries(demoScenarios.ma
 
 function MetaBar() {
   return <dl className="public-meta-bar">
-    <div><dt>데이터 기준월</dt><dd>{publicMeta.asOfMonth}</dd></div>
+    <div><dt>데이터 기준</dt><dd>{publicMeta.asOfMonth}</dd></div>
     <div><dt>출처</dt><dd>{publicMeta.source}</dd></div>
     <div><dt>공개 상태</dt><dd><span className="public-status-badge">{publicMeta.status}</span></dd></div>
   </dl>;
@@ -71,5 +71,5 @@ function PublicPolicy({ scenarioId }: { scenarioId: string }) {
 }
 
 function PublicDataNotice() {
-  return <aside className="public-data-notice"><b>데이터 안내</b><p>인구·시설 수치는 공공데이터 기반 실측 정제값입니다. 종목별 강좌와 정책안은 시연값이며, 담당자 공개 승인 절차는 연결되지 않았습니다.</p></aside>;
+  return <aside className="public-data-notice"><b>데이터 안내</b><p>인구는 {asOfMonth} 기준 실측값, 시설은 {facilityCollectedAt} 조회한 시도 주소 확인분입니다. 종목별 강좌와 정책안은 시연값이며, 담당자 공개 승인 절차는 연결되지 않았습니다.</p></aside>;
 }

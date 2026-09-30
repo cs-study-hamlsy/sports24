@@ -30,7 +30,7 @@
 - 스포츠바우처이용시설 강좌정보 API: 서버의 `/api/courses`에서 `SPORTS_COURSE_API_KEY`로 조회한다. 응답의 강좌에는 지역 식별자가 없으므로 시설번호·사업자번호와 지역을 연결하기 전에는 지역별 합계나 시뮬레이션 지표에 합산하지 않는다.
 - 전국 체육시설: [국민체육진흥공단 전국체육시설 정보 API](https://www.data.go.kr/data/15113986/openapi.do)를 활용신청해 연결했다. 서버 `/api/facilities`에서 `SPORTS_FACILITY_API_KEY`로 조회하며(엔드포인트 `.../SRVC_API_SFMS_FACI/TODZ_API_SFMS_FACI`, 필터 `cpb_nm`·`ftype_nm`·`faci_nm`), 시군구별 정상운영 시설 수를 정제해 지표에 쓴다. 강좌 API의 `brno`·`facil_sn`과 공통 키가 있는지는 확인되지 않았으므로 강좌와 시설을 임의로 결합하지 않는다.
 - 지역별 연령 인구: [행정안전부 지역별 성별·연령별 주민등록 인구](https://www.data.go.kr/data/15097972/fileData.do)를 CSV 대신 odcloud 오픈 API(`POPULATION_API_KEY`, `api.odcloud.kr/api/15097972/v1/{uddi}`)로 연결했다. 읍면동 단위를 시군구로 집계해 청소년(0~19)·청년(20~39)·중장년(40~64)·고령(65+) 4구간과 총인구를 산출한다(현재 기준월 2026-08).
-- 실측 데이터 정제: `scripts/build-real-data.mjs`(`npm run build-data`)가 위 두 API로 강원·충북·서울·경기의 13개 시군구 인구·시설을 정제해 `data/regions.json`·`data/candidates.ts`를 갱신한다. 새 기준월이 공개되면 스크립트의 `POPULATION_UDDI`·`AS_OF_MONTH`만 교체한다.
+- 실측 데이터 정제: `scripts/build-real-data.mjs`(`npm run build-data`)가 위 두 API로 강원·충북·서울·경기의 13개 시군구 인구·시설을 정제해 `data/regions.json`·`data/candidates.ts`를 갱신한다. 인구는 2026-08 기준이고 시설은 `facilityCollectedAt` 조회일의 정상운영·시도 주소 확인분이다. 시도 주소가 빈 시설은 잘못된 지역 합산을 막기 위해 제외하며, 모든 페이지의 `totalCount`와 수집 행 수가 같아야 한다. 새 인구 기준월이 공개되면 스크립트의 `POPULATION_UDDI`·`AS_OF_MONTH`를 교체한다.
 - 강좌와 시설을 직접 연결할 자료 후보: [문화공공데이터광장의 스포츠강좌이용권시설정보 안내](https://www.culture.go.kr/data/contest/info.do). 상세 명세·현행 제공 여부와 `brno`·`facil_sn` 포함 여부를 확인해야 한다.
 - 공모전 데모에서는 4개 시·도의 13개 세부지역 데이터를 정제해 로컬 JSON으로 사용하며 초기 버전에는 데이터베이스를 두지 않는다. 인구·시설은 실측 API로 정제했고, 10개 종목 분류의 강좌만 지역 식별자가 없어 시연값으로 남는다.
 - 연령 인구구조는 실제 수요가 아니라 잠재 수요를 검토하기 위한 보조 지표다. 연령별 선호 종목을 임의로 확정하지 않는다.

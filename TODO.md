@@ -30,7 +30,7 @@
 - [x] HWP 저장은 구현하지 않기로 결정하고 결과 화면의 비활성 HWP 버튼을 제거했다. 저장·배포는 PDF·인쇄로 제공한다. (실제 HWP 생성 요구가 확인되면 별도 라이브러리로 재검토)
 - [x] [국민체육진흥공단 전국체육시설 정보 API](https://www.data.go.kr/data/15113986/openapi.do)를 활용신청해 서버 환경변수(`SPORTS_FACILITY_API_KEY`)로 연결했다. `/api/facilities`(시군구·유형·시설명 필터)로 실시간 조회하고, 시군구별 정상운영 시설 수를 정제해 지표에 사용한다.
 - [x] [행정안전부 지역별 성별·연령별 주민등록 인구](https://www.data.go.kr/data/15097972/fileData.do)를 CSV 대신 odcloud 오픈 API(`POPULATION_API_KEY`)로 연결했다. 읍면동 단위를 시군구로 집계해 연령 4구간·총인구를 산출한다(기준월 2026-08).
-- [x] `scripts/build-real-data.mjs`(`npm run build-data`)로 원주시와 후보 6개 시군구의 실측 인구·시설을 정제해 `regions.json`·`candidates.ts`를 갱신했다. 유사 지역 선정·비교 계산이 실측 인구·시설 위에서 동작한다.
+- [x] `scripts/build-real-data.mjs`(`npm run build-data`)로 13개 지역의 실측 인구·시설을 정제해 `regions.json`·`candidates.ts`를 갱신했다. 시설은 2026-09-30 API 조회 시 정상운영·시도 주소 확인분만 집계하며, 페이지 누락을 검사한다. 유사 지역 선정·비교 계산이 이 값 위에서 동작한다.
 - [x] 지역현황·시민 공개 화면에 실측 총인구·정상운영 시설 수·연령 구성 기준월을 표시하고, 종목별 강좌만 시연값임을 명시했다.
 - [x] `OPENAI_API_KEY`·전국체육시설 API를 설정한 로컬에서 `/api/analyze`(Gap)와 `/api/facilities`(원주시) 실제 성공 응답을 확인했다.
 - [x] 데스크톱 좌측 메뉴 내부를 sticky 처리하고 900px 이하에서는 기존 가로형 메뉴로 복귀하도록 했다.

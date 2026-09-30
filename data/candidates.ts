@@ -1,5 +1,5 @@
 // 유사 지역 선정용 후보 데이터.
-// 인구(totalPopulation, population)와 시설 수(facilities)는 실측 공공데이터(기준월 2026-08)다.
+// 인구(totalPopulation, population)는 2026-08 기준, 시설 수(facilities)는 2026-09-30 조회 실측값이다.
 // 종목별 강좌(courses)는 지역 식별자가 없는 스포츠강좌 API 한계로 시연값을 유지한다.
 // scripts/build-real-data.mjs로 재생성한다. 직접 수정하지 말 것.
 
@@ -13,7 +13,7 @@ export type CandidateRegion = {
   totalPopulation: number;
   /** 연령 구성 비율(%) 청소년(0~19) / 청년(20~39) / 중장년(40~64) / 고령(65+), 합 100 */
   population: [number, number, number, number];
-  /** 정상운영 등록 체육시설 수 (실측) */
+  /** 시·도 주소가 확인된 정상운영 등록 체육시설 수 (실측) */
   facilities: number;
   /** 대표 유형별 정상운영 시설 수 (실측) */
   facilityTypes: { type: string; count: number }[];
@@ -53,8 +53,8 @@ export const candidates: CandidateRegion[] = [
     provinceLabel: "충청북도",
     totalPopulation: 205691,
     population: [13.4, 20.4, 39.2, 26.9],
-    facilities: 871,
-    facilityTypes: [{ type: "간이운동장", count: 535 }, { type: "체력단련장", count: 53 }, { type: "수영장", count: 3 }, { type: "축구장", count: 9 }, { type: "테니스장", count: 3 }],
+    facilities: 829,
+    facilityTypes: [{ type: "간이운동장", count: 535 }, { type: "체력단련장", count: 47 }, { type: "수영장", count: 3 }, { type: "축구장", count: 9 }, { type: "테니스장", count: 3 }],
     courses: [
       { sport: "태권도", count: 16 },
       { sport: "배드민턴", count: 8 },
@@ -99,8 +99,8 @@ export const candidates: CandidateRegion[] = [
     provinceLabel: "강원특별자치도",
     totalPopulation: 205440,
     population: [12.7, 19.6, 39.1, 28.6],
-    facilities: 909,
-    facilityTypes: [{ type: "간이운동장", count: 588 }, { type: "체력단련장", count: 57 }, { type: "수영장", count: 3 }, { type: "축구장", count: 3 }, { type: "테니스장", count: 3 }],
+    facilities: 857,
+    facilityTypes: [{ type: "간이운동장", count: 588 }, { type: "체력단련장", count: 44 }, { type: "수영장", count: 3 }, { type: "축구장", count: 3 }, { type: "테니스장", count: 3 }],
     courses: [
       { sport: "태권도", count: 17 },
       { sport: "배드민턴", count: 8 },
@@ -168,8 +168,8 @@ export const candidates: CandidateRegion[] = [
     provinceLabel: "서울특별시",
     totalPopulation: 552357,
     population: [17.2, 25.3, 39.7, 17.8],
-    facilities: 1605,
-    facilityTypes: [{ type: "간이운동장", count: 148 }, { type: "체력단련장", count: 571 }, { type: "수영장", count: 2 }, { type: "축구장", count: 2 }, { type: "테니스장", count: 4 }],
+    facilities: 1000,
+    facilityTypes: [{ type: "간이운동장", count: 148 }, { type: "체력단련장", count: 402 }, { type: "수영장", count: 2 }, { type: "축구장", count: 2 }, { type: "테니스장", count: 4 }],
     courses: [
       { sport: "태권도", count: 24 },
       { sport: "배드민턴", count: 16 },
@@ -191,8 +191,8 @@ export const candidates: CandidateRegion[] = [
     provinceLabel: "서울특별시",
     totalPopulation: 649212,
     population: [14.9, 27.9, 38.1, 19.1],
-    facilities: 1094,
-    facilityTypes: [{ type: "간이운동장", count: 14 }, { type: "체력단련장", count: 373 }, { type: "수영장", count: 3 }, { type: "축구장", count: 4 }, { type: "테니스장", count: 6 }],
+    facilities: 932,
+    facilityTypes: [{ type: "간이운동장", count: 14 }, { type: "체력단련장", count: 335 }, { type: "수영장", count: 3 }, { type: "축구장", count: 4 }, { type: "테니스장", count: 6 }],
     courses: [
       { sport: "태권도", count: 30 },
       { sport: "배드민턴", count: 18 },
@@ -214,8 +214,8 @@ export const candidates: CandidateRegion[] = [
     provinceLabel: "서울특별시",
     totalPopulation: 480045,
     population: [13.7, 25.3, 38.6, 22.4],
-    facilities: 621,
-    facilityTypes: [{ type: "간이운동장", count: 49 }, { type: "체력단련장", count: 137 }, { type: "수영장", count: 3 }, { type: "축구장", count: 6 }, { type: "테니스장", count: 7 }],
+    facilities: 390,
+    facilityTypes: [{ type: "간이운동장", count: 49 }, { type: "체력단련장", count: 106 }, { type: "수영장", count: 3 }, { type: "축구장", count: 6 }, { type: "테니스장", count: 7 }],
     courses: [
       { sport: "태권도", count: 28 },
       { sport: "배드민턴", count: 15 },
@@ -237,8 +237,8 @@ export const candidates: CandidateRegion[] = [
     provinceLabel: "경기도",
     totalPopulation: 622663,
     population: [17, 28, 39.8, 15.2],
-    facilities: 1156,
-    facilityTypes: [{ type: "간이운동장", count: 117 }, { type: "체력단련장", count: 184 }, { type: "수영장", count: 4 }, { type: "축구장", count: 17 }, { type: "테니스장", count: 6 }],
+    facilities: 1094,
+    facilityTypes: [{ type: "간이운동장", count: 117 }, { type: "체력단련장", count: 179 }, { type: "수영장", count: 4 }, { type: "축구장", count: 17 }, { type: "테니스장", count: 6 }],
     courses: [
       { sport: "태권도", count: 35 },
       { sport: "배드민턴", count: 18 },
@@ -260,8 +260,8 @@ export const candidates: CandidateRegion[] = [
     provinceLabel: "경기도",
     totalPopulation: 483679,
     population: [19.1, 22, 41.2, 17.7],
-    facilities: 765,
-    facilityTypes: [{ type: "간이운동장", count: 7 }, { type: "체력단련장", count: 169 }, { type: "수영장", count: 11 }, { type: "축구장", count: 3 }, { type: "테니스장", count: 5 }],
+    facilities: 665,
+    facilityTypes: [{ type: "간이운동장", count: 7 }, { type: "체력단련장", count: 152 }, { type: "수영장", count: 11 }, { type: "축구장", count: 3 }, { type: "테니스장", count: 5 }],
     courses: [
       { sport: "태권도", count: 30 },
       { sport: "배드민턴", count: 17 },
@@ -283,8 +283,8 @@ export const candidates: CandidateRegion[] = [
     provinceLabel: "경기도",
     totalPopulation: 535692,
     population: [17.6, 24.1, 40.4, 17.8],
-    facilities: 803,
-    facilityTypes: [{ type: "간이운동장", count: 49 }, { type: "체력단련장", count: 124 }, { type: "수영장", count: 7 }, { type: "축구장", count: 17 }, { type: "테니스장", count: 14 }],
+    facilities: 645,
+    facilityTypes: [{ type: "간이운동장", count: 49 }, { type: "체력단련장", count: 107 }, { type: "수영장", count: 7 }, { type: "축구장", count: 17 }, { type: "테니스장", count: 14 }],
     courses: [
       { sport: "태권도", count: 38 },
       { sport: "배드민턴", count: 20 },

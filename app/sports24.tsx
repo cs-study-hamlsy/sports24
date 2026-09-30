@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { asOfMonth, getRegion, region as defaultRegion, regions, type Region } from "../lib/regions";
+import { asOfMonth, facilityCollectedAt, getRegion, region as defaultRegion, regions, type Region } from "../lib/regions";
 import { baselineFor, changesLabel, courseBudget, demoDataVersion, demoScenariosFor, metricNames, restoreDemoScenariosFor, Scenario, scenarioTemplates, usedCourses } from "../data/scenarios";
 import { calculateSupplyMetrics, describeScenario } from "../lib/simulation";
 import { formatAiAnalysis } from "../lib/ai-analysis";
@@ -403,7 +403,7 @@ function Overview({ region: currentRegion, onSelectRegion, onSimulation }: { reg
     </form>
     <div className="region-summary-strip">
       <div><span>총 주민등록 인구</span><strong>{currentRegion.totalPopulation.toLocaleString("ko-KR")}명</strong><small>실측 · 기준 {asOfMonth}</small></div>
-      <div><span>정상운영 등록 체육시설</span><strong>{currentRegion.facilities.toLocaleString("ko-KR")}개소</strong><small>전국체육시설 정보 API 실측</small></div>
+      <div><span>정상운영 등록 체육시설</span><strong>{currentRegion.facilities.toLocaleString("ko-KR")}개소</strong><small>실측 · {facilityCollectedAt} 조회 · 시·도 주소 확인분</small></div>
       <div><span>등록 강좌</span><strong>{totalCourses}개</strong><small>시연값 · 지역 식별 자료 확보 시 실측 전환</small></div>
     </div>
     <div className="overview-grid">

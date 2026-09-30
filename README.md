@@ -38,7 +38,7 @@ POPULATION_API_KEY=your_data_go_kr_service_key
 
 `OPENAI_API_KEY`는 서버의 `/api/analyze` Route Handler에서만 사용하는 AI 분석 인증키다. `OPENAI_MODEL`은 선택값으로 지정하지 않으면 `gpt-4o-mini`를 사용한다. `SPORTS_COURSE_API_KEY`·`SPORTS_FACILITY_API_KEY`는 각각 `/api/courses`·`/api/facilities`에서 쓰는 data.go.kr 인증키이고, `POPULATION_API_KEY`는 행정안전부 인구 odcloud API 인증키다. 세 키는 모두 서버 Route Handler에서만 사용하며 브라우저에 노출하지 않는다. 키가 없어도 나머지 화면은 열린다.
 
-`data/regions.json`과 `data/candidates.ts`의 인구·시설 실측값은 `npm run build-data`로 재정제한다(`POPULATION_API_KEY`, `SPORTS_FACILITY_API_KEY` 필요).
+`data/regions.json`과 `data/candidates.ts`의 13개 지역 인구·시설 실측값은 `npm run build-data`로 재정제한다(`POPULATION_API_KEY`, `SPORTS_FACILITY_API_KEY` 필요). 인구는 2026-08 기준이며, 시설은 API 조회일에 정상운영 상태이고 대상 시·도 주소가 확인된 행만 센다. 주소의 시·도가 비어 있는 행은 지역 수치에 포함하지 않는다. 종목별 강좌는 시연값을 유지한다.
 
 `SPORTS_COURSE_API_KEY`는 공공데이터포털에서 이 강좌 API에 활용신청한 인증키다. 발급받은 일반 키 또는 URL 인코딩된 키를 입력할 수 있다. API 키는 서버의 Route Handler에서만 사용하며 브라우저에 노출하지 않는다. 키가 없어도 기존 목업 데모 화면은 열리지만 실시간 강좌 조회는 사용할 수 없다.
 

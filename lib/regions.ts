@@ -23,7 +23,7 @@ type RawRegion = {
 };
 
 const baseData = (regionsData as {
-  id: string; label: string; shortName: string; provinceId: string; provinceLabel: string; asOfMonth?: string;
+  id: string; label: string; shortName: string; provinceId: string; provinceLabel: string; asOfMonth?: string; facilityCollectedAt?: string;
   totalPopulation: number; facilities: number; facilityTypes: { type: string; count: number }[];
   population: { region: number[]; comparison: number[] };
   courses: { sport: string; count: number }[]; analysis?: string[];
@@ -138,8 +138,10 @@ function enrich(target: RawRegion) {
   };
 }
 
-/** 인구·시설 실측 데이터의 기준월(YYYY-MM). 강좌 데이터는 시연값이다. */
+/** 주민등록 인구 실측 데이터의 기준월(YYYY-MM). 강좌 데이터는 시연값이다. */
 export const asOfMonth = baseData.asOfMonth ?? "";
+/** 시설 API를 조회해 시·도 주소 확인분을 집계한 날짜(Asia/Seoul). */
+export const facilityCollectedAt = baseData.facilityCollectedAt ?? "";
 
 /** 조회 가능한 모든 지역(기준지역 + 후보). 각 지역은 자기 유사지역과 비교값을 코드로 계산해 갖는다. */
 export const regions = rawRegions.map(enrich);
