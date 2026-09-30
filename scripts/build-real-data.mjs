@@ -22,31 +22,44 @@ const FACILITY_TYPES = ["간이운동장", "체력단련장", "수영장", "축�
 // 대상 지역과 종목별 강좌(시연값). sido/sigungu는 공공데이터의 시도명/시군구명과 정확히 일치해야 한다.
 const registry = {
   base: {
-    id: "wonju", label: "강원 원주시", shortName: "원주시", sido: "강원특별자치도", sigungu: "원주시",
+    id: "wonju", label: "강원 원주시", shortName: "원주시", provinceId: "gangwon", sido: "강원특별자치도", sigungu: "원주시",
     comparisonLabel: "춘천시, 강릉시, 충주시",
     courses: [
-      { sport: "태권도", count: 32 }, { sport: "배드민턴", count: 7 }, { sport: "수영", count: 5 },
-      { sport: "생활체조", count: 4 }, { sport: "요가·필라테스", count: 6 }, { sport: "기타", count: 30 },
+      { sport: "태권도", count: 28 }, { sport: "배드민턴", count: 7 }, { sport: "수영", count: 5 },
+      { sport: "생활체조", count: 4 }, { sport: "요가·필라테스", count: 6 }, { sport: "축구", count: 8 },
+      { sport: "농구", count: 4 }, { sport: "탁구", count: 6 }, { sport: "테니스", count: 4 }, { sport: "기타", count: 12 },
     ],
     analysis: [
-      "태권도 강좌가 전체의 38.1%로 유사지역 평균(24.2%) 대비 13.9%p 높음",
-      "수영 강좌 비중 6.0%로 유사지역 평균(13.5%)의 약 1/2 수준",
-      "고령인구 비율이 유사지역보다 높으나 생활체조 강좌는 4개에 불과함",
+      "태권도 강좌 비중이 다른 종목보다 높아 공급 편중 여부를 검토할 필요가 있음",
+      "수영과 생활체조 강좌는 유사지역 평균과 함께 확대 여지를 검토할 수 있음",
+      "세부 종목을 포함한 10개 시연 분류로 종목 구성 변화를 비교함",
     ],
   },
   candidates: [
-    { id: "chuncheon", label: "강원 춘천시", shortName: "춘천시", sido: "강원특별자치도", sigungu: "춘천시",
-      courses: [["태권도",20],["배드민턴",9],["수영",11],["생활체조",8],["요가·필라테스",7],["기타",28]] },
-    { id: "chungju", label: "충북 충주시", shortName: "충주시", sido: "충청북도", sigungu: "충주시",
-      courses: [["태권도",18],["배드민턴",8],["수영",9],["생활체조",7],["요가·필라테스",6],["기타",27]] },
-    { id: "jecheon", label: "충북 제천시", shortName: "제천시", sido: "충청북도", sigungu: "제천시",
-      courses: [["태권도",15],["배드민턴",7],["수영",8],["생활체조",6],["요가·필라테스",5],["기타",22]] },
-    { id: "gangneung", label: "강원 강릉시", shortName: "강릉시", sido: "강원특별자치도", sigungu: "강릉시",
-      courses: [["태권도",19],["배드민턴",8],["수영",12],["생활체조",6],["요가·필라테스",8],["기타",25]] },
-    { id: "donghae", label: "강원 동해시", shortName: "동해시", sido: "강원특별자치도", sigungu: "동해시",
-      courses: [["태권도",10],["배드민턴",4],["수영",5],["생활체조",3],["요가·필라테스",3],["기타",15]] },
-    { id: "hongcheon", label: "강원 홍천군", shortName: "홍천군", sido: "강원특별자치도", sigungu: "홍천군",
-      courses: [["태권도",8],["배드민턴",3],["수영",3],["생활체조",2],["요가·필라테스",2],["기타",12]] },
+    { id: "chuncheon", label: "강원 춘천시", shortName: "춘천시", provinceId: "gangwon", sido: "강원특별자치도", sigungu: "춘천시",
+      courses: [["태권도",18],["배드민턴",9],["수영",11],["생활체조",8],["요가·필라테스",7],["축구",8],["농구",4],["탁구",6],["테니스",4],["기타",8]] },
+    { id: "chungju", label: "충북 충주시", shortName: "충주시", provinceId: "chungbuk", sido: "충청북도", sigungu: "충주시",
+      courses: [["태권도",16],["배드민턴",8],["수영",9],["생활체조",7],["요가·필라테스",6],["축구",7],["농구",4],["탁구",5],["테니스",4],["기타",9]] },
+    { id: "jecheon", label: "충북 제천시", shortName: "제천시", provinceId: "chungbuk", sido: "충청북도", sigungu: "제천시",
+      courses: [["태권도",13],["배드민턴",7],["수영",8],["생활체조",6],["요가·필라테스",5],["축구",6],["농구",3],["탁구",4],["테니스",3],["기타",8]] },
+    { id: "gangneung", label: "강원 강릉시", shortName: "강릉시", provinceId: "gangwon", sido: "강원특별자치도", sigungu: "강릉시",
+      courses: [["태권도",17],["배드민턴",8],["수영",12],["생활체조",6],["요가·필라테스",8],["축구",7],["농구",4],["탁구",5],["테니스",4],["기타",7]] },
+    { id: "donghae", label: "강원 동해시", shortName: "동해시", provinceId: "gangwon", sido: "강원특별자치도", sigungu: "동해시",
+      courses: [["태권도",8],["배드민턴",4],["수영",5],["생활체조",3],["요가·필라테스",3],["축구",4],["농구",2],["탁구",3],["테니스",2],["기타",6]] },
+    { id: "hongcheon", label: "강원 홍천군", shortName: "홍천군", provinceId: "gangwon", sido: "강원특별자치도", sigungu: "홍천군",
+      courses: [["태권도",6],["배드민턴",3],["수영",3],["생활체조",2],["요가·필라테스",2],["축구",4],["농구",1],["탁구",2],["테니스",2],["기타",5]] },
+    { id: "gangnam", label: "서울 강남구", shortName: "강남구", provinceId: "seoul", sido: "서울특별시", sigungu: "강남구",
+      courses: [["태권도",24],["배드민턴",16],["수영",12],["생활체조",10],["요가·필라테스",22],["축구",10],["농구",8],["탁구",10],["테니스",9],["기타",15]] },
+    { id: "songpa", label: "서울 송파구", shortName: "송파구", provinceId: "seoul", sido: "서울특별시", sigungu: "송파구",
+      courses: [["태권도",30],["배드민턴",18],["수영",15],["생활체조",14],["요가·필라테스",20],["축구",18],["농구",12],["탁구",14],["테니스",10],["기타",18]] },
+    { id: "nowon", label: "서울 노원구", shortName: "노원구", provinceId: "seoul", sido: "서울특별시", sigungu: "노원구",
+      courses: [["태권도",28],["배드민턴",15],["수영",12],["생활체조",16],["요가·필라테스",14],["축구",12],["농구",10],["탁구",15],["테니스",8],["기타",16]] },
+    { id: "pyeongtaek", label: "경기 평택시", shortName: "평택시", provinceId: "gyeonggi", sido: "경기도", sigungu: "평택시",
+      courses: [["태권도",35],["배드민턴",18],["수영",18],["생활체조",15],["요가·필라테스",16],["축구",22],["농구",14],["탁구",16],["테니스",10],["기타",20]] },
+    { id: "gimpo", label: "경기 김포시", shortName: "김포시", provinceId: "gyeonggi", sido: "경기도", sigungu: "김포시",
+      courses: [["태권도",30],["배드민턴",17],["수영",15],["생활체조",13],["요가·필라테스",18],["축구",18],["농구",12],["탁구",14],["테니스",9],["기타",18]] },
+    { id: "paju", label: "경기 파주시", shortName: "파주시", provinceId: "gyeonggi", sido: "경기도", sigungu: "파주시",
+      courses: [["태권도",38],["배드민턴",20],["수영",18],["생활체조",16],["요가·필라테스",22],["축구",25],["농구",15],["탁구",18],["테니스",14],["기타",22]] },
   ],
 };
 
@@ -155,7 +168,7 @@ async function main() {
   // data/regions.json (기준지역)
   const courses = shareOf(base.courses);
   const regionJson = [{
-    id: base.id, label: base.label, shortName: base.shortName, comparisonLabel: base.comparisonLabel,
+    id: base.id, label: base.label, shortName: base.shortName, provinceId: base.provinceId, provinceLabel: base.sido, comparisonLabel: base.comparisonLabel,
     asOfMonth: AS_OF_MONTH,
     totalPopulation: base.totalPopulation, facilities: base.facilities, facilityTypes: base.facilityTypes,
     population: { region: base.population, comparison: base.population },
@@ -169,6 +182,8 @@ async function main() {
     id: ${JSON.stringify(candidate.id)},
     label: ${JSON.stringify(candidate.label)},
     shortName: ${JSON.stringify(candidate.shortName)},
+    provinceId: ${JSON.stringify(candidate.provinceId)},
+    provinceLabel: ${JSON.stringify(candidate.sido)},
     totalPopulation: ${candidate.totalPopulation},
     population: [${candidate.population.join(", ")}],
     facilities: ${candidate.facilities},
@@ -186,6 +201,8 @@ export type CandidateRegion = {
   id: string;
   label: string;
   shortName: string;
+  provinceId: string;
+  provinceLabel: string;
   /** 총 주민등록 인구 (실측, 기준월 ${AS_OF_MONTH}) */
   totalPopulation: number;
   /** 연령 구성 비율(%) 청소년(0~19) / 청년(20~39) / 중장년(40~64) / 고령(65+), 합 100 */

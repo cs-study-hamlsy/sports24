@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { asOfMonth, getRegion, region, regions, PEER_COUNT, type Region } from "../lib/regions";
-import { baselineFor, changesLabel, courseBudget, demoScenariosFor, metricNames, normalizeScenario, Scenario, usedCourses } from "../data/scenarios";
+import { baselineFor, changesLabel, courseBudget, demoDataVersion, demoScenariosFor, metricNames, normalizeScenario, restoreDemoScenariosFor, Scenario, usedCourses } from "../data/scenarios";
 import { calculateSupplyMetrics, describeScenario } from "../lib/simulation";
 import { AppShell, DataTable, Section, SideItem } from "./ui";
 
@@ -132,11 +132,16 @@ function ComparisonHistory() {
   const [scenarios, setScenarios] = useState<Scenario[]>(() => demoScenariosFor(region));
   useEffect(() => {
     let list: Scenario[] | null = null;
+    let storedVersion: number | undefined;
     try {
       const saved = sessionStorage.getItem(`sports24-state-${target.id}`);
-      if (saved) { const parsed = JSON.parse(saved) as { scenarios?: Scenario[] }; if (Array.isArray(parsed.scenarios)) list = parsed.scenarios; }
+      if (saved) {
+        const parsed = JSON.parse(saved) as { demoDataVersion?: number; scenarios?: Scenario[] };
+        if (Array.isArray(parsed.scenarios)) list = parsed.scenarios;
+        storedVersion = parsed.demoDataVersion;
+      }
     } catch { /* 예시 시나리오로 대체한다. */ }
-    setScenarios((list ?? demoScenariosFor(target)).map(normalizeScenario));
+    setScenarios(restoreDemoScenariosFor(target, list ?? demoScenariosFor(target), list ? storedVersion : demoDataVersion));
   }, [target]);
   return <>
     <div className="filter-bar compact-filter"><span className="filter-label">대상지역</span><strong>{target.label}</strong></div>

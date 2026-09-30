@@ -3,6 +3,8 @@
     "id": "wonju",
     "label": "강원 원주시",
     "shortName": "원주시",
+    "provinceId": "gangwon",
+    "provinceLabel": "강원특별자치도",
     "comparisonLabel": "춘천시, 강릉시, 충주시",
     "asOfMonth": "2026-08",
     "totalPopulation": 365379,
@@ -46,9 +48,9 @@
     "courses": [
       {
         "sport": "태권도",
-        "count": 32,
-        "share": 38.1,
-        "comparison": 38.1
+        "count": 28,
+        "share": 33.3,
+        "comparison": 33.3
       },
       {
         "sport": "배드민턴",
@@ -75,16 +77,40 @@
         "comparison": 7.1
       },
       {
+        "sport": "축구",
+        "count": 8,
+        "share": 9.5,
+        "comparison": 9.5
+      },
+      {
+        "sport": "농구",
+        "count": 4,
+        "share": 4.8,
+        "comparison": 4.8
+      },
+      {
+        "sport": "탁구",
+        "count": 6,
+        "share": 7.1,
+        "comparison": 7.1
+      },
+      {
+        "sport": "테니스",
+        "count": 4,
+        "share": 4.8,
+        "comparison": 4.8
+      },
+      {
         "sport": "기타",
-        "count": 30,
-        "share": 35.7,
-        "comparison": 35.7
+        "count": 12,
+        "share": 14.3,
+        "comparison": 14.3
       }
     ],
     "analysis": [
-      "태권도 강좌가 전체의 38.1%로 유사지역 평균(24.2%) 대비 13.9%p 높음",
-      "수영 강좌 비중 6.0%로 유사지역 평균(13.5%)의 약 1/2 수준",
-      "고령인구 비율이 유사지역보다 높으나 생활체조 강좌는 4개에 불과함"
+      "태권도 강좌 비중이 다른 종목보다 높아 공급 편중 여부를 검토할 필요가 있음",
+      "수영과 생활체조 강좌는 유사지역 평균과 함께 확대 여지를 검토할 수 있음",
+      "세부 종목을 포함한 10개 시연 분류로 종목 구성 변화를 비교함"
     ]
   }
 ]

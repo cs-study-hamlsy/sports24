@@ -9,6 +9,8 @@ type RawRegion = {
   id: string;
   label: string;
   shortName: string;
+  provinceId: string;
+  provinceLabel: string;
   comparisonLabel?: string;
   asOfMonth?: string;
   totalPopulation: number;
@@ -21,7 +23,7 @@ type RawRegion = {
 };
 
 const baseData = (regionsData as {
-  id: string; label: string; shortName: string; asOfMonth?: string;
+  id: string; label: string; shortName: string; provinceId: string; provinceLabel: string; asOfMonth?: string;
   totalPopulation: number; facilities: number; facilityTypes: { type: string; count: number }[];
   population: { region: number[]; comparison: number[] };
   courses: { sport: string; count: number }[]; analysis?: string[];
@@ -30,14 +32,14 @@ const baseData = (regionsData as {
 // 기준지역(원주)과 후보 지역을 동일한 원시 형태로 합쳐 모두 조회 가능한 지역으로 다룬다.
 const rawRegions: RawRegion[] = [
   {
-    id: baseData.id, label: baseData.label, shortName: baseData.shortName,
+    id: baseData.id, label: baseData.label, shortName: baseData.shortName, provinceId: baseData.provinceId, provinceLabel: baseData.provinceLabel,
     asOfMonth: baseData.asOfMonth, totalPopulation: baseData.totalPopulation, facilities: baseData.facilities, facilityTypes: baseData.facilityTypes,
     population: baseData.population.region,
     courses: baseData.courses.map((course) => ({ sport: course.sport, count: course.count })),
     analysis: baseData.analysis,
   },
   ...candidates.map((candidate) => ({
-    id: candidate.id, label: candidate.label, shortName: candidate.shortName,
+    id: candidate.id, label: candidate.label, shortName: candidate.shortName, provinceId: candidate.provinceId, provinceLabel: candidate.provinceLabel,
     totalPopulation: candidate.totalPopulation, facilities: candidate.facilities, facilityTypes: candidate.facilityTypes,
     population: [...candidate.population],
     courses: candidate.courses.map((course) => ({ sport: course.sport, count: course.count })),
@@ -102,8 +104,14 @@ function describeGaps(courses: { sport: string; share: number; comparison: numbe
   const high = [...rated].sort((left, right) => right.gap - left.gap)[0];
   const low = [...rated].sort((left, right) => left.gap - right.gap)[0];
   const lines: string[] = [];
-  if (high && high.gap > 0.5) lines.push(`${high.sport} 강좌 비중이 ${high.share.toFixed(1)}%로 유사지역 평균(${high.comparison.toFixed(1)}%) 대비 ${high.gap.toFixed(1)}%p 높음`);
-  if (low && low.gap < -0.5) lines.push(`${low.sport} 강좌 비중이 ${low.share.toFixed(1)}%로 유사지역 평균(${low.comparison.toFixed(1)}%) 대비 ${Math.abs(low.gap).toFixed(1)}%p 낮음`);
+  if (high) lines.push(high.gap > 0.5
+    ? `${high.sport} 강좌 비중이 ${high.share.toFixed(1)}%로 유사지역 평균(${high.comparison.toFixed(1)}%) 대비 ${high.gap.toFixed(1)}%p 높음`
+    : `${high.sport} 강좌 비중은 유사지역 평균과 대체로 유사한 범위임`);
+  if (low) lines.push(low.gap < -0.5
+    ? `${low.sport} 강좌 비중이 ${low.share.toFixed(1)}%로 유사지역 평균(${low.comparison.toFixed(1)}%) 대비 ${Math.abs(low.gap).toFixed(1)}%p 낮음`
+    : `${low.sport} 강좌 비중은 유사지역 평균과 대체로 유사한 범위임`);
+  const leadingShare = [...rated].sort((left, right) => right.share - left.share).slice(0, 3).reduce((sum, course) => sum + course.share, 0);
+  lines.push(`상위 3개 종목이 전체 시연 강좌의 ${leadingShare.toFixed(1)}%를 차지해 종목 구성 분산 정도를 함께 검토할 수 있음`);
   return lines;
 }
 
@@ -123,7 +131,7 @@ function enrich(target: RawRegion) {
   };
   const analysis = target.analysis?.length ? target.analysis : describeGaps(courses);
   return {
-    id: target.id, label: target.label, shortName: target.shortName, asOfMonth: asOfMonth,
+    id: target.id, label: target.label, shortName: target.shortName, provinceId: target.provinceId, provinceLabel: target.provinceLabel, asOfMonth: asOfMonth,
     totalPopulation: target.totalPopulation, facilities: target.facilities, facilityTypes: target.facilityTypes,
     comparisonLabel: peerRegions.map((peer) => peer.shortName).join(", "),
     population, courses, analysis, rankedPeers, similarPeers,

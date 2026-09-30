@@ -24,9 +24,9 @@ export const scenarioTemplates: { id: string; name: string; changes: Record<stri
   { id: "a", name: "A안", changes: { 수영: 5, 배드민턴: 5 }, date: "2026.09.21" },
   { id: "b", name: "B안 (대안 예시)", changes: { 수영: 3, 배드민턴: 3, 생활체조: 4 }, date: "2026.09.21" },
   { id: "c", name: "C안 편중 완화형", changes: { 태권도: -2, 수영: 3, 배드민턴: 2, 생활체조: 4 }, date: "2026.09.22" },
-  { id: "d", name: "D안 생활체육 확대형", changes: { 태권도: -2, 수영: 2, 배드민턴: 2, 생활체조: 2, "요가·필라테스": 2 }, date: "2026.09.23" },
-  { id: "e", name: "E안 수영 접근성 강화형", changes: { 태권도: -3, 수영: 5, 생활체조: 2, 기타: 1 }, date: "2026.09.24" },
-  { id: "f", name: "F안 종목 다양화형", changes: { 배드민턴: 2, 생활체조: 2, "요가·필라테스": 2, 기타: 2 }, date: "2026.09.25" },
+  { id: "d", name: "D안 구기종목 확장형", changes: { 축구: 4, 농구: 3, 탁구: 3 }, date: "2026.09.23" },
+  { id: "e", name: "E안 생활체육 균형형", changes: { 생활체조: 3, 요가·필라테스: 3, 탁구: 2, 테니스: 2 }, date: "2026.09.24" },
+  { id: "f", name: "F안 수영·테니스 보완형", changes: { 수영: 5, 테니스: 3, 배드민턴: 2 }, date: "2026.09.25" },
 ];
 
 /** 선택한 지역의 현재 종목 구성 지표. */
@@ -41,6 +41,19 @@ export function demoScenariosFor(region: Region): Scenario[] {
     metrics: calculateSupplyMetrics(region.courses, template.changes),
     analysis: describeScenario(region.courses, template.changes),
   }));
+}
+
+export const demoDataVersion = 2;
+
+/**
+ * 버전이 없는 이전 세션에는 새 시연안을 보충하되, 현재 버전에서 사용자가
+ * 삭제한 시나리오는 다시 만들지 않는다.
+ */
+export function restoreDemoScenariosFor(region: Region, saved: Scenario[], storedVersion?: number): Scenario[] {
+  const normalized = saved.map(normalizeScenario);
+  if (storedVersion === demoDataVersion) return normalized;
+  const savedIds = new Set(normalized.map((scenario) => scenario.id));
+  return [...normalized, ...demoScenariosFor(region).filter((scenario) => !savedIds.has(scenario.id))];
 }
 
 export const courseBudget = 10;

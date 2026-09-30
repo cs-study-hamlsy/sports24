@@ -17,7 +17,7 @@ const publicMeta = {
   status: "시연 공개",
 };
 // 정책안별 공개 상태(시연값). 실제 서비스에서는 담당자 승인 절차와 연동한다.
-const policyStatus: Record<string, string> = { a: "시연 정책안", b: "시연 정책안", c: "시연 정책안" };
+const policyStatus: Record<string, string> = Object.fromEntries(demoScenarios.map((scenario) => [scenario.id, "시연 정책안"]));
 
 function MetaBar() {
   return <dl className="public-meta-bar">
